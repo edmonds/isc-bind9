@@ -1,0 +1,12 @@
+#!/bin/sh -e
+
+if [ "$1" = "purge" ]; then
+    rm -f /etc/bind/rndc.key
+    rm -f /var/cache/bind/managed-keys.bind
+    rm -f /var/cache/bind/managed-keys.bind.jnl
+    deluser --quiet isc-bind9 >/dev/null || true
+fi
+
+#DEBHELPER#
+
+exit 0

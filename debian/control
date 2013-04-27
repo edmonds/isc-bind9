@@ -1,0 +1,126 @@
+Source: isc-bind9
+Section: net
+Priority: optional
+Maintainer: Robert S. Edmonds <edmonds@debian.org>
+Build-Depends: debhelper (>= 9), dpkg-dev (>= 1.16.1.1~),
+ libcap2-dev,
+ libkrb5-dev,
+ libssl-dev,
+ libxml2-dev,
+ python
+Standards-Version: 3.9.4
+Homepage: http://www.isc.org/software/bind
+
+Package: isc-bind9
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends},
+ libisc-bind9 (= ${binary:Version}),
+ isc-bind9-utils (= ${binary:Version}),
+ adduser
+Conflicts: bind, bind9
+Provides: bind9
+Recommends: isc-bind9-dnsutils
+Suggests: isc-bind9-dbg, isc-bind9-doc
+Description: ISC BIND9 DNS server
+ Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
+ distribution.
+ .
+ This package provides the 'named' server, config files, and init scripts.
+
+Package: libisc-bind9
+Section: libs
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Recommends: isc-bind9-dbg
+Description: ISC BIND9 shared libraries
+ Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
+ distribution.
+ .
+ This package provides shared libraries used by the BIND9 server and its
+ utilities.
+
+Package: libisc-bind9-dev
+Section: libdevel
+Architecture: any
+Conflicts: libbind-dev
+Depends: ${misc:Depends}, libisc-bind9 (= ${binary:Version})
+Description: ISC BIND9 development files
+ Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
+ distribution.
+ .
+ This package provides files needed to develop programs that use BIND9's APIs.
+
+Package: isc-bind9-dbg
+Section: debug
+Priority: extra
+Architecture: any
+Depends: ${misc:Depends}, libisc-bind9 (= ${binary:Version})
+Enhances: isc-bind9, isc-bind9-utils, isc-bind9-dnsutils
+Description: ISC BIND9 debugging symbols
+ Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
+ distribution.
+ .
+ This package provides detached debugging symbols for the libraries and
+ compiled binaries shipped in the other ISC BIND9 packages.
+
+Package: isc-bind9-utils
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends},
+ libisc-bind9 (= ${binary:Version}),
+ python
+Conflicts: bind9utils
+Provides: bind9utils
+Description: ISC BIND9 server utilities
+ Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
+ distribution.
+ .
+ This package provides the following utilities useful for maintaining a BIND9
+ server:
+ .
+  - ddns-confgen
+  - dnssec-checkds
+  - dnssec-dsfromkey
+  - dnssec-keyfromlabel
+  - dnssec-keygen
+  - dnssec-revoke
+  - dnssec-settime
+  - dnssec-signzone
+  - dnssec-verify
+  - genrandom
+  - isc-hmac-fixup
+  - named-checkconf
+  - named-checkzone
+  - named-compilezone
+  - named-journalprint
+  - nsec3hash
+  - rndc
+  - rndc-confgen
+
+Package: isc-bind9-dnsutils
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends},
+ libisc-bind9 (= ${binary:Version})
+Conflicts: bind9-host, dnsutils
+Provides: bind9-host, dnsutils
+Description: ISC BIND9 DNS utilities
+ Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
+ distribution.
+ .
+ This package provides the following general purpose DNS utilities:
+  - arpaname
+  - dig
+  - host
+  - nslookup
+  - nsupdate
+
+Package: isc-bind9-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends}
+Description: ISC BIND9 documentation
+ Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
+ distribution.
+ .
+ This package provides HTML and PDF versions of the BIND9 Administrator
+ Reference Manual, as well as HTML-formatted man pages, in the
+ /usr/share/doc/isc-bind9-doc directory.

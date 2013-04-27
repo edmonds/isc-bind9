@@ -1,0 +1,70 @@
+#!/bin/sh -e
+
+### BEGIN INIT INFO
+# Provides:          isc-bind9
+# Required-Start:    $network $remote_fs $syslog
+# Required-Stop:     $network $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+### END INIT INFO
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+NAME="named"
+DESC="ISC BIND 9 server"
+DAEMON="/usr/sbin/named"
+PIDFILE="/var/run/named/named.pid"
+RNDC="/usr/sbin/rndc"
+
+# Don't modify this line, change or create /etc/default/isc-bind9.
+OPTIONS="-u isc-bind9"
+
+test -x $DAEMON || exit 0
+test -x $RNDC || exit 0
+
+test -f /etc/default/isc-bind9 && . /etc/default/isc-bind9
+
+. /lib/lsb/init-functions
+
+case "$1" in
+    start)
+        log_daemon_msg "Starting $DESC" "$NAME"
+        install -m 0775 -o root -g isc-bind9 -d /var/run/named >/dev/null 2>&1 || true
+        if start-stop-daemon --start --quiet --oknodo --exec $DAEMON --pidfile $PIDFILE -- $OPTIONS; then
+            log_end_msg 0
+        else
+            log_end_msg 1
+        fi
+        ;;
+
+    stop)
+        log_daemon_msg "Stopping $DESC" "$NAME"
+        pid=$($RNDC stop -p | awk '/^pid:/ {print $2}') || true
+        if [ -z "$pid" ]; then
+            start-stop-daemon --stop --quiet --oknodo --exec $DAEMON --pidfile $PIDFILE
+        fi
+        log_end_msg 0
+        ;;
+
+    reload|force-reload)
+        log_daemon_msg "Reloading $DESC" "$NAME"
+        $RNDC reload >/dev/null && log_end_msg 0 || log_end_msg 1
+        ;;
+
+    restart)
+        $0 stop
+        $0 start
+        ;;
+    
+    status)
+        status_of_proc -p $PIDFILE $DAEMON $NAME && exit 0 || exit $?
+        ;;
+
+    *)
+        N=/etc/init.d/$NAME
+        log_action_msg "Usage: $N {start|stop|reload|restart|force-reload|status}"
+        exit 1
+        ;;
+esac
+
+exit 0

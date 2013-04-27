@@ -1,0 +1,4 @@
+usr/bin/isc-config.sh
+usr/include/isc-bind9
+usr/lib/isc-bind9/*.so
+usr/share/man/man1/isc-config.sh.1

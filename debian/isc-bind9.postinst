@@ -1,0 +1,32 @@
+#!/bin/sh -e
+
+if [ "$1" = configure ]; then
+    lastversion="$2"
+
+    if ! getent passwd isc-bind9 >/dev/null; then
+        adduser --quiet --system --group --no-create-home --home /var/cache/bind isc-bind9
+    fi
+
+    if [ ! -s /etc/bind/rndc.key ]; then
+        /usr/sbin/rndc-confgen -r /dev/urandom -a -u isc-bind9
+        chown isc-bind9:isc-bind9 /etc/bind/rndc.key
+        chmod g+r /etc/bind/rndc.key
+    fi
+
+    if [ -z "$lastversion" ]; then
+        chmod g+s /etc/bind
+        chmod 0775 /var/cache/bind
+        chmod 0775 /var/lib/bind
+
+        chown root:isc-bind9 /etc/bind
+        chown root:isc-bind9 /var/cache/bind
+        chown root:isc-bind9 /var/lib/bind
+
+        chgrp isc-bind9 /etc/bind/named.conf* || true
+        chmod g+r /etc/bind/named.conf* || true
+    fi
+fi
+
+#DEBHELPER#
+
+exit 0

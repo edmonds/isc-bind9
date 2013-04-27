@@ -1,0 +1,2 @@
+version=3
+opts="passive,uversionmangle=s/-/./" ftp://ftp.isc.org/isc/bind9/cur/([\d\.]+)/bind-(.+)\.tar\.gz

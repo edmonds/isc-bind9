@@ -1,0 +1,10 @@
+usr/bin/dig
+usr/bin/host
+usr/bin/nslookup
+usr/bin/nsupdate
+usr/sbin/arpaname usr/bin
+usr/share/man/man1/arpaname.1
+usr/share/man/man1/dig.1
+usr/share/man/man1/host.1
+usr/share/man/man1/nslookup.1
+usr/share/man/man1/nsupdate.1

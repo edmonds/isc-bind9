@@ -1,0 +1,18 @@
+// prime the server with knowledge of the root servers
+
+zone "." {
+	type hint;
+	file "/etc/bind/db.root";
+};
+
+// be authoritative for the localhost forward and reverse zones
+
+zone "localhost" {
+	type master;
+	file "/etc/bind/db.local";
+};
+
+zone "127.in-addr.arpa" {
+	type master;
+	file "/etc/bind/db.127";
+};

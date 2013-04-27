@@ -1,0 +1,44 @@
+#!/usr/bin/make -f
+
+# Hardening.
+export DEB_BUILD_HARDENING=1
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+%:
+	dh $@ --parallel
+
+override_dh_auto_configure:
+	./configure \
+		--prefix=/usr \
+		--sysconfdir=/etc/bind \
+		--localstatedir=/var \
+		--libdir=/usr/lib/isc-bind9 \
+		--includedir=/usr/include/isc-bind9 \
+		--with-gnu-ld \
+		--with-libtool \
+		--enable-shared \
+		--disable-static \
+		--with-gssapi=/usr \
+		--with-openssl=/usr \
+		--with-libxml2=/usr \
+		--with-dlopen \
+		--enable-threads \
+		--enable-largefile \
+		--enable-rpz-nsip \
+		--enable-rpz-nsdname \
+		$(shell dpkg-buildflags --export=configure)
+
+override_dh_compress:
+	dh_compress -X.html -X.pdf
+
+override_dh_installchangelogs:
+	dh_installchangelogs -p isc-bind9-doc
+	dh_installchangelogs --remaining-packages -XCHANGES -XHISTORY
+
+override_dh_strip:
+	dh_strip -a --dbg-package=isc-bind9-dbg

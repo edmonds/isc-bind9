@@ -1,0 +1,5 @@
+isc-bind9 (9.9.2.P2-1~dnspkg70+1) wheezy-dnspkg; urgency=low
+
+  * Initial release.
+
+ -- Robert S. Edmonds <edmonds@debian.org>  Mon, 29 Apr 2013 00:29:48 -0400

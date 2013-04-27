@@ -1,0 +1,9 @@
+This "isc-bind9" package and its default conf files, init scripts, and
+maintainer scripts are loosely based on the Debian bind9 version 9.9.2.dfsg.P1-2
+package.
+
+Upstream releases from ISC are kept on the "upstream" branch (with pristine-tar
+deltas on the "pristine-tar" branch). Debian packaging is kept on the "debian"
+branch.
+
+No changes to the original source code as shipped by ISC are performed.
