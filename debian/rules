@@ -33,6 +33,9 @@ override_dh_auto_configure:
 		--enable-rpz-nsdname \
 		$(shell dpkg-buildflags --export=configure)
 
+override_dh_auto_test:
+	$(MAKE) force-test || true
+
 override_dh_compress:
 	dh_compress -X.html -X.pdf
 
