@@ -13,6 +13,7 @@ Homepage: http://www.isc.org/software/bind
 
 Package: isc-bind9
 Architecture: any
+Pre-Depends: libisc-bind9 (= ${binary:Version}), isc-bind9-utils (= ${binary:Version})
 Depends: ${misc:Depends}, ${shlibs:Depends},
  libisc-bind9 (= ${binary:Version}),
  isc-bind9-utils (= ${binary:Version}),
