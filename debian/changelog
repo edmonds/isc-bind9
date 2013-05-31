@@ -1,3 +1,9 @@
+isc-bind9 (9.9.3-1~dnspkg70+1) wheezy-dnspkg; urgency=low
+
+  * New upstream release.
+
+ -- Robert S. Edmonds <edmonds@debian.org>  Fri, 31 May 2013 07:50:43 -0700
+
 isc-bind9 (9.9.2.P2-1~dnspkg70+1) wheezy-dnspkg; urgency=low
 
   * Initial release.
