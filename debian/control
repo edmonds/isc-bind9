@@ -21,7 +21,7 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
 Conflicts: bind, bind9
 Provides: bind9
 Recommends: isc-bind9-dnsutils
-Suggests: isc-bind9-dbg, isc-bind9-doc
+Suggests: isc-bind9, isc-bind9-doc
 Description: ISC BIND9 DNS server
  Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
  distribution.
@@ -32,7 +32,7 @@ Package: libisc-bind9
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Recommends: isc-bind9-dbg
+Recommends: isc-bind9
 Description: ISC BIND9 shared libraries
  Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
  distribution.
@@ -50,19 +50,6 @@ Description: ISC BIND9 development files
  distribution.
  .
  This package provides files needed to develop programs that use BIND9's APIs.
-
-Package: isc-bind9-dbg
-Section: debug
-Priority: extra
-Architecture: any
-Depends: ${misc:Depends}, libisc-bind9 (= ${binary:Version})
-Enhances: isc-bind9, isc-bind9-utils, isc-bind9-dnsutils
-Description: ISC BIND9 debugging symbols
- Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
- distribution.
- .
- This package provides detached debugging symbols for the libraries and
- compiled binaries shipped in the other ISC BIND9 packages.
 
 Package: isc-bind9-utils
 Architecture: any
