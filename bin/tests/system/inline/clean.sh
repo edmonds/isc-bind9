@@ -1,4 +1,4 @@
-# Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -52,6 +52,10 @@ rm -f ns3/expired.db
 rm -f ns3/expired.db.jnl
 rm -f ns3/expired.db.signed
 rm -f ns3/expired.db.signed.jnl
+rm -f ns3/nsec3.db
+rm -f ns3/nsec3.db.jnl
+rm -f ns3/nsec3.db.signed
+rm -f ns3/nsec3.db.signed.jnl
 rm -f ns3/retransfer.bk
 rm -f ns3/retransfer.bk.jnl
 rm -f ns3/retransfer.bk.signed
@@ -71,3 +75,7 @@ rm -f dig.out.ns*.test*
 rm -f signing.out*
 rm -f freeze.test*
 rm -f thaw.test*
+rm -f */*.nzf
+rm -f ns3/test-?.bk
+rm -f ns3/test-?.bk.signed
+rm -f ns3/test-?.bk.signed.jnl

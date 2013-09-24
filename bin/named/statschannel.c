@@ -208,6 +208,12 @@ init_desc(void) {
 		       "UpdateBadPrereq");
 	SET_NSSTATDESC(rpz_rewrites, "response policy zone rewrites",
 		       "RPZRewrites");
+#ifdef USE_RRL
+	SET_NSSTATDESC(ratedropped, "responses dropped for rate limits",
+		       "RateDropped");
+	SET_NSSTATDESC(rateslipped, "responses truncated for rate limits",
+		       "RateSlipped");
+#endif /* USE_RRL */
 	INSIST(i == dns_nsstatscounter_max);
 
 	/* Initialize resolver statistics */
@@ -972,9 +978,14 @@ zone_xmlrender(dns_zone_t *zone, void *arg) {
 	isc_uint32_t serial;
 	xmlTextWriterPtr writer = arg;
 	isc_stats_t *zonestats;
+	dns_zonestat_level_t statlevel;
 	isc_uint64_t nsstat_values[dns_nsstatscounter_max];
 	int xmlrc;
 	isc_result_t result;
+
+	statlevel = dns_zone_getstatlevel(zone);
+	if (statlevel == dns_zonestat_none)
+		return (ISC_R_SUCCESS);
 
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "zone"));
 
@@ -1232,6 +1243,8 @@ generatexml(ns_server_t *server, int *buflen, xmlChar **buf) {
 	xmlFreeTextWriter(writer);
 
 	xmlDocDumpFormatMemoryEnc(doc, buf, buflen, "UTF-8", 0);
+	if (*buf == NULL)
+		goto error;
 	xmlFreeDoc(doc);
 	return (ISC_R_SUCCESS);
 
@@ -1426,6 +1439,8 @@ generatexml(ns_server_t *server, int *buflen, xmlChar **buf) {
 	xmlFreeTextWriter(writer);
 
 	xmlDocDumpFormatMemoryEnc(doc, buf, buflen, "UTF-8", 1);
+	if (*buf == NULL)
+		goto error;
 	xmlFreeDoc(doc);
 	return (ISC_R_SUCCESS);
 
@@ -1451,7 +1466,7 @@ render_index(const char *url, const char *querystring, void *arg,
 	     isc_buffer_t *b, isc_httpdfree_t **freecb,
 	     void **freecb_args)
 {
-	unsigned char *msg;
+	unsigned char *msg = NULL;
 	int msglen;
 	ns_server_t *server = arg;
 	isc_result_t result;
