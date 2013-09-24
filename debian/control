@@ -14,14 +14,11 @@ Homepage: http://www.isc.org/software/bind
 Package: isc-bind9
 Architecture: any
 Pre-Depends: libisc-bind9 (= ${binary:Version}), isc-bind9-utils (= ${binary:Version})
-Depends: ${misc:Depends}, ${shlibs:Depends},
- libisc-bind9 (= ${binary:Version}),
- isc-bind9-utils (= ${binary:Version}),
- adduser
+Depends: ${misc:Depends}, ${shlibs:Depends}, adduser
 Conflicts: bind, bind9
 Provides: bind9
 Recommends: isc-bind9-dnsutils
-Suggests: isc-bind9, isc-bind9-doc
+Suggests: isc-bind9-doc
 Description: ISC BIND9 DNS server
  Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
  distribution.
