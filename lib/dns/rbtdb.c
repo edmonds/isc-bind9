@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1121,8 +1121,8 @@ newversion(dns_db_t *db, dns_dbversion_t **versionp) {
 			version->hash = rbtdb->current_version->hash;
 			version->salt_length =
 				rbtdb->current_version->salt_length;
-			memcpy(version->salt, rbtdb->current_version->salt,
-			       version->salt_length);
+			memmove(version->salt, rbtdb->current_version->salt,
+				version->salt_length);
 		} else {
 			version->flags = 0;
 			version->iterations = 0;
@@ -1706,8 +1706,11 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 
 	nodelock = &rbtdb->node_locks[bucket];
 
+#define KEEP_NODE(n, r) \
+	((n)->data != NULL || (n)->down != NULL || (n) == (r)->origin_node)
+
 	/* Handle easy and typical case first. */
-	if (!node->dirty && (node->data != NULL || node->down != NULL)) {
+	if (!node->dirty && KEEP_NODE(node, rbtdb)) {
 		dns_rbtnode_refdecrement(node, &nrefs);
 		INSIST((int)nrefs >= 0);
 		if (nrefs == 0) {
@@ -1776,11 +1779,10 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	isc_refcount_decrement(&nodelock->references, &refs);
 	INSIST((int)refs >= 0);
 
-	/*
-	 * XXXDCL should this only be done for cache zones?
-	 */
-	if (node->data != NULL || node->down != NULL)
+	if (KEEP_NODE(node, rbtdb))
 		goto restore_locks;
+
+#undef KEEP_NODE
 
 	if (write_locked) {
 		/*
@@ -2127,8 +2129,8 @@ setnsec3parameters(dns_db_t *db, rbtdb_version_t *version) {
 				if (nsec3param.flags != 0)
 					continue;
 
-				memcpy(version->salt, nsec3param.salt,
-				       nsec3param.salt_length);
+				memmove(version->salt, nsec3param.salt,
+					nsec3param.salt_length);
 				version->hash = nsec3param.hash;
 				version->salt_length = nsec3param.salt_length;
 				version->iterations = nsec3param.iterations;
@@ -4626,12 +4628,12 @@ rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 		switch (rdata.type) {
 		case dns_rdatatype_a:
 			INSIST(rdata.length == 4);
-			memcpy(&ina.s_addr, rdata.data, 4);
+			memmove(&ina.s_addr, rdata.data, 4);
 			isc_netaddr_fromin(&netaddr, &ina);
 			break;
 		case dns_rdatatype_aaaa:
 			INSIST(rdata.length == 16);
-			memcpy(in6a.s6_addr, rdata.data, 16);
+			memmove(in6a.s6_addr, rdata.data, 16);
 			isc_netaddr_fromin6(&netaddr, &in6a);
 			break;
 		default:
@@ -6868,28 +6870,21 @@ static isc_result_t
 loadnode(dns_rbtdb_t *rbtdb, dns_name_t *name, dns_rbtnode_t **nodep,
 	 isc_boolean_t hasnsec)
 {
-	isc_result_t noderesult, nsecresult;
-	dns_rbtnode_t *nsecnode;
+	isc_result_t noderesult, nsecresult, tmpresult;
+	dns_rbtnode_t *nsecnode = NULL, *node = NULL;
 
-	noderesult = dns_rbt_addnode(rbtdb->tree, name, nodep);
-
-#ifdef BIND9
-	if (noderesult == ISC_R_SUCCESS && rbtdb->rpz_cidr != NULL)
-		dns_rpz_cidr_addip(rbtdb->rpz_cidr, name);
-#endif
-
+	noderesult = dns_rbt_addnode(rbtdb->tree, name, &node);
 	if (!hasnsec)
-		return (noderesult);
+		goto done;
 	if (noderesult == ISC_R_EXISTS) {
 		/*
 		 * Add a node to the auxiliary NSEC tree for an old node
 		 * just now getting an NSEC record.
 		 */
-		if ((*nodep)->nsec == DNS_RBT_NSEC_HAS_NSEC)
-			return (noderesult);
-	} else if (noderesult != ISC_R_SUCCESS) {
-		return (noderesult);
-	}
+		if (node->nsec == DNS_RBT_NSEC_HAS_NSEC)
+			goto done;
+	} else if (noderesult != ISC_R_SUCCESS)
+		goto done;
 
 	/*
 	 * Build the auxiliary tree for NSECs as we go.
@@ -6899,12 +6894,11 @@ loadnode(dns_rbtdb_t *rbtdb, dns_name_t *name, dns_rbtnode_t **nodep,
 	 * Add nodes to the auxiliary tree after corresponding nodes have
 	 * been added to the main tree.
 	 */
-	nsecnode = NULL;
 	nsecresult = dns_rbt_addnode(rbtdb->nsec, name, &nsecnode);
 	if (nsecresult == ISC_R_SUCCESS) {
 		nsecnode->nsec = DNS_RBT_NSEC_NSEC;
-		(*nodep)->nsec = DNS_RBT_NSEC_HAS_NSEC;
-		return (noderesult);
+		node->nsec = DNS_RBT_NSEC_HAS_NSEC;
+		goto done;
 	}
 
 	if (nsecresult == ISC_R_EXISTS) {
@@ -6915,21 +6909,41 @@ loadnode(dns_rbtdb_t *rbtdb, dns_name_t *name, dns_rbtnode_t **nodep,
 			      ISC_LOG_WARNING,
 			      "addnode: NSEC node already exists");
 #endif
-		(*nodep)->nsec = DNS_RBT_NSEC_HAS_NSEC;
-		return (noderesult);
+		node->nsec = DNS_RBT_NSEC_HAS_NSEC;
+		goto done;
 	}
 
-	nsecresult = dns_rbt_deletenode(rbtdb->tree, *nodep, ISC_FALSE);
-	if (nsecresult != ISC_R_SUCCESS)
-		isc_log_write(dns_lctx,
-			      DNS_LOGCATEGORY_DATABASE,
-			      DNS_LOGMODULE_CACHE,
-			      ISC_LOG_WARNING,
-			      "loading_addrdataset: "
-			      "dns_rbt_deletenode: %s after "
-			      "dns_rbt_addnode(NSEC): %s",
-			      isc_result_totext(nsecresult),
-			      isc_result_totext(noderesult));
+	if (noderesult == ISC_R_SUCCESS) {
+		/*
+		 * Remove the node we just added above.
+		 */
+		tmpresult = dns_rbt_deletenode(rbtdb->tree, node, ISC_FALSE);
+		if (tmpresult != ISC_R_SUCCESS)
+			isc_log_write(dns_lctx,
+				      DNS_LOGCATEGORY_DATABASE,
+				      DNS_LOGMODULE_CACHE,
+				      ISC_LOG_WARNING,
+				      "loading_addrdataset: "
+				      "dns_rbt_deletenode: %s after "
+				      "dns_rbt_addnode(NSEC): %s",
+				      isc_result_totext(tmpresult),
+				      isc_result_totext(noderesult));
+
+	}
+
+	/*
+	 * Set the error condition to be returned.
+	 */
+	noderesult = nsecresult;
+
+ done:
+#ifdef BIND9
+	if (noderesult == ISC_R_SUCCESS && rbtdb->rpz_cidr != NULL)
+		dns_rpz_cidr_addip(rbtdb->rpz_cidr, name);
+#endif
+	if (noderesult == ISC_R_SUCCESS || noderesult == ISC_R_EXISTS)
+		*nodep = node;
+
 	return (noderesult);
 }
 
@@ -7266,7 +7280,8 @@ getnsec3parameters(dns_db_t *db, dns_dbversion_t *version, dns_hash_t *hash,
 			*hash = rbtversion->hash;
 		if (salt != NULL && salt_length != NULL) {
 			REQUIRE(*salt_length >= rbtversion->salt_length);
-			memcpy(salt, rbtversion->salt, rbtversion->salt_length);
+			memmove(salt, rbtversion->salt,
+				rbtversion->salt_length);
 		}
 		if (salt_length != NULL)
 			*salt_length = rbtversion->salt_length;

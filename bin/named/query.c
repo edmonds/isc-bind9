@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -4601,6 +4601,7 @@ rpz_rewrite(ns_client_t *client, dns_rdatatype_t qtype, isc_result_t qresult,
 		memset(&st->m, 0, sizeof(st->m));
 		st->m.type = DNS_RPZ_TYPE_BAD;
 		st->m.policy = DNS_RPZ_POLICY_MISS;
+		st->m.ttl = ~0;
 		memset(&st->r, 0, sizeof(st->r));
 		memset(&st->q, 0, sizeof(st->q));
 		dns_fixedname_init(&st->_qnamef);
@@ -4982,12 +4983,12 @@ rdata_tonetaddr(const dns_rdata_t *rdata, isc_netaddr_t *netaddr) {
 	switch (rdata->type) {
 	case dns_rdatatype_a:
 		INSIST(rdata->length == 4);
-		memcpy(&ina.s_addr, rdata->data, 4);
+		memmove(&ina.s_addr, rdata->data, 4);
 		isc_netaddr_fromin(netaddr, &ina);
 		return (ISC_R_SUCCESS);
 	case dns_rdatatype_aaaa:
 		INSIST(rdata->length == 16);
-		memcpy(in6a.s6_addr, rdata->data, 16);
+		memmove(in6a.s6_addr, rdata->data, 16);
 		isc_netaddr_fromin6(netaddr, &in6a);
 		return (ISC_R_SUCCESS);
 	default:
