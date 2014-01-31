@@ -1,4 +1,4 @@
-# Copyright (C) 2005, 2007, 2010-2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2005, 2007, 2010-2014  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -34,6 +34,16 @@ cmp good.conf.in good.conf.out || ret=1
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
+echo "I: checking that named-checkconf -x removes secrets"
+ret=0
+# ensure there is a secret and that it is not the check string.
+grep 'secret "' good.conf.in > /dev/null || ret=1
+grep 'secret "????????????????"' good.conf.in > /dev/null 2>&1 && ret=1
+$CHECKCONF -p -x good.conf.in | grep -v '^good.conf.in:' > good.conf.out 2>&1 || ret=1
+grep 'secret "????????????????"' good.conf.out > /dev/null 2>&1 || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
 for bad in bad*.conf
 do
 	ret=0
@@ -42,6 +52,12 @@ do
 	if [ $? != 1 ]; then echo "I:failed"; ret=1; fi
 	status=`expr $status + $ret`
 done
+
+echo "I: checking that named-checkconf -z catches missing hint file"
+ret=0
+$CHECKCONF -z hint-nofile.conf > /dev/null 2>&1 && ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
 echo "I: checking named-checkconf dnssec warnings"
 ret=0
@@ -111,6 +127,22 @@ n=`$CHECKCONF inline-good.conf 2>&1 | grep "missing 'file' entry" | wc -l`
 [ $n -eq 0 ] || ret=1
 n=`$CHECKCONF inline-bad.conf 2>&1 | grep "missing 'file' entry" | wc -l`
 [ $n -eq 1 ] || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I: checking for missing key directory warning"
+ret=0
+rm -rf test.keydir
+n=`$CHECKCONF warn-keydir.conf 2>&1 | grep "'test.keydir' does not exist" | wc -l`
+[ $n -eq 1 ] || ret=1
+touch test.keydir
+n=`$CHECKCONF warn-keydir.conf 2>&1 | grep "'test.keydir' is not a directory" | wc -l`
+[ $n -eq 1 ] || ret=1
+rm -f test.keydir
+mkdir test.keydir
+n=`$CHECKCONF warn-keydir.conf 2>&1 | grep "key-directory" | wc -l`
+[ $n -eq 0 ] || ret=1
+rm -rf test.keydir
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
