@@ -1,13 +1,11 @@
-# $Id$
-# 
 # This file must follow /bin/sh rules.  It is imported directly via
 # configure.
 #
 PRODUCT=BIND
-DESCRIPTION="(Extended Support Version)"
+DESCRIPTION=
 MAJORVER=9
-MINORVER=9
-PATCHVER=5
-RELEASETYPE=
-RELEASEVER=
+MINORVER=10
+PATCHVER=0
+RELEASETYPE=-P
+RELEASEVER=1
 EXTENSIONS=

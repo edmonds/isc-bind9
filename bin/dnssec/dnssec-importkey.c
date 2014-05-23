@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -47,6 +47,10 @@
 
 #include <dst/dst.h>
 
+#ifdef PKCS11CRYPTO
+#include <pk11/result.h>
+#endif
+
 #include "dnssectool.h"
 
 #ifndef PATH_MAX
@@ -85,7 +89,7 @@ db_load_from_stream(dns_db_t *db, FILE *fp) {
 	dns_rdatacallbacks_t callbacks;
 
 	dns_rdatacallbacks_init(&callbacks);
-	result = dns_db_beginload(db, &callbacks.add, &callbacks.add_private);
+	result = dns_db_beginload(db, &callbacks);
 	if (result != ISC_R_SUCCESS)
 		fatal("dns_db_beginload failed: %s", isc_result_totext(result));
 
@@ -94,7 +98,7 @@ db_load_from_stream(dns_db_t *db, FILE *fp) {
 	if (result != ISC_R_SUCCESS)
 		fatal("can't load from input: %s", isc_result_totext(result));
 
-	result = dns_db_endload(db, &callbacks.add_private);
+	result = dns_db_endload(db, &callbacks);
 	if (result != ISC_R_SUCCESS)
 		fatal("dns_db_endload failed: %s", isc_result_totext(result));
 }
@@ -302,6 +306,9 @@ main(int argc, char **argv) {
 	if (result != ISC_R_SUCCESS)
 		fatal("out of memory");
 
+#ifdef PKCS11CRYPTO
+	pk11_result_register();
+#endif
 	dns_result_register();
 
 	isc_commandline_errprint = ISC_FALSE;
@@ -313,8 +320,8 @@ main(int argc, char **argv) {
 			if (setdel)
 				fatal("-D specified more than once");
 
-			setdel = ISC_TRUE;
-			del = strtotime(isc_commandline_argument, now, now);
+			del = strtotime(isc_commandline_argument,
+					now, now, &setdel);
 			break;
 		case 'K':
 			dir = isc_commandline_argument;
@@ -322,17 +329,15 @@ main(int argc, char **argv) {
 				fatal("directory must be non-empty string");
 			break;
 		case 'L':
-			if (strcmp(isc_commandline_argument, "none") == 0)
-				ttl = 0;
-			else
-				ttl = strtottl(isc_commandline_argument);
+			ttl = strtottl(isc_commandline_argument);
 			setttl = ISC_TRUE;
 			break;
 		case 'P':
 			if (setpub)
 				fatal("-P specified more than once");
-			setpub = ISC_TRUE;
-			pub = strtotime(isc_commandline_argument, now, now);
+
+			pub = strtotime(isc_commandline_argument,
+					now, now, &setpub);
 			break;
 		case 'f':
 			filename = isc_commandline_argument;
