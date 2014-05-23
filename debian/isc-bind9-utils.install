@@ -1,6 +1,8 @@
 usr/sbin/ddns-confgen
 usr/sbin/dnssec-checkds
+usr/sbin/dnssec-coverage
 usr/sbin/dnssec-dsfromkey
+usr/sbin/dnssec-importkey
 usr/sbin/dnssec-keyfromlabel
 usr/sbin/dnssec-keygen
 usr/sbin/dnssec-revoke
@@ -13,13 +15,18 @@ usr/sbin/named-checkconf
 usr/sbin/named-checkzone
 usr/sbin/named-compilezone
 usr/sbin/named-journalprint
+usr/sbin/named-rrchecker
 usr/sbin/nsec3hash
 usr/sbin/rndc
 usr/sbin/rndc-confgen
+usr/sbin/tsig-keygen
+usr/share/man/man1/named-rrchecker.1
 usr/share/man/man5/rndc.conf.5
 usr/share/man/man8/ddns-confgen.8
 usr/share/man/man8/dnssec-checkds.8
+usr/share/man/man8/dnssec-coverage.8
 usr/share/man/man8/dnssec-dsfromkey.8
+usr/share/man/man8/dnssec-importkey.8
 usr/share/man/man8/dnssec-keyfromlabel.8
 usr/share/man/man8/dnssec-keygen.8
 usr/share/man/man8/dnssec-revoke.8
@@ -35,3 +42,4 @@ usr/share/man/man8/named-journalprint.8
 usr/share/man/man8/nsec3hash.8
 usr/share/man/man8/rndc-confgen.8
 usr/share/man/man8/rndc.8
+usr/share/man/man8/tsig-keygen.8
