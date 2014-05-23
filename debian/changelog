@@ -1,3 +1,10 @@
+isc-bind9 (9.10.0.P1-1~dnspkg70+1) wheezy-dnspkg; urgency=medium
+
+  * New upstream release.
+  * Configure with "--enable-libjson".
+
+ -- Robert S. Edmonds <edmonds@debian.org>  Fri, 23 May 2014 13:31:28 -0400
+
 isc-bind9 (9.9.5-1~dnspkg70+1) wheezy-dnspkg; urgency=medium
 
   * New upstream release.
