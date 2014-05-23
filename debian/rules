@@ -25,6 +25,7 @@ override_dh_auto_configure:
 		--disable-static \
 		--with-gssapi=/usr \
 		--with-openssl=/usr \
+		--with-libjson=/usr \
 		--with-libxml2=/usr \
 		--with-dlopen \
 		--enable-threads \
