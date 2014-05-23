@@ -65,7 +65,9 @@ Description: ISC BIND9 server utilities
  .
   - ddns-confgen
   - dnssec-checkds
+  - dnssec-coverage
   - dnssec-dsfromkey
+  - dnssec-importkey
   - dnssec-keyfromlabel
   - dnssec-keygen
   - dnssec-revoke
@@ -78,9 +80,11 @@ Description: ISC BIND9 server utilities
   - named-checkzone
   - named-compilezone
   - named-journalprint
+  - named-rrchecker
   - nsec3hash
   - rndc
   - rndc-confgen
+  - tsig-keygen
 
 Package: isc-bind9-dnsutils
 Architecture: any
@@ -94,6 +98,7 @@ Description: ISC BIND9 DNS utilities
  .
  This package provides the following general purpose DNS utilities:
   - arpaname
+  - delv
   - dig
   - host
   - nslookup
