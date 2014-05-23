@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -41,6 +41,10 @@
 
 #include <dst/dst.h>
 
+#ifdef PKCS11CRYPTO
+#include <pk11/result.h>
+#endif
+
 #include "dnssectool.h"
 
 const char *program = "dnssec-settime";
@@ -57,9 +61,12 @@ usage(void) {
 	fprintf(stderr,	"    %s [options] keyfile\n\n", program);
 	fprintf(stderr, "Version: %s\n", VERSION);
 	fprintf(stderr, "General options:\n");
-#ifdef USE_PKCS11
+#if defined(PKCS11CRYPTO)
+	fprintf(stderr, "    -E engine:          specify PKCS#11 provider "
+					"(default: %s)\n", PK11_LIB_LOCATION);
+#elif defined(USE_PKCS11)
 	fprintf(stderr, "    -E engine:          specify OpenSSL engine "
-						 "(default \"pkcs11\")\n");
+					   "(default \"pkcs11\")\n");
 #else
 	fprintf(stderr, "    -E engine:          specify OpenSSL engine\n");
 #endif
@@ -119,7 +126,7 @@ int
 main(int argc, char **argv) {
 	isc_result_t	result;
 #ifdef USE_PKCS11
-	const char	*engine = "pkcs11";
+	const char	*engine = PKCS11_ENGINE;
 #else
 	const char	*engine = NULL;
 #endif
@@ -165,6 +172,9 @@ main(int argc, char **argv) {
 
 	setup_logging(verbose, mctx, &log);
 
+#ifdef PKCS11CRYPTO
+	pk11_result_register();
+#endif
 	dns_result_register();
 
 	isc_commandline_errprint = ISC_FALSE;
@@ -236,10 +246,7 @@ main(int argc, char **argv) {
 			}
 			break;
 		case 'L':
-			if (strcmp(isc_commandline_argument, "none") == 0)
-				ttl = 0;
-			else
-				ttl = strtottl(isc_commandline_argument);
+			ttl = strtottl(isc_commandline_argument);
 			setttl = ISC_TRUE;
 			break;
 		case 'v':
@@ -252,65 +259,45 @@ main(int argc, char **argv) {
 				fatal("-P specified more than once");
 
 			changed = ISC_TRUE;
-			if (!strcasecmp(isc_commandline_argument, "none")) {
-				unsetpub = ISC_TRUE;
-			} else {
-				setpub = ISC_TRUE;
-				pub = strtotime(isc_commandline_argument,
-						now, now);
-			}
+			pub = strtotime(isc_commandline_argument,
+					now, now, &setpub);
+			unsetpub = !setpub;
 			break;
 		case 'A':
 			if (setact || unsetact)
 				fatal("-A specified more than once");
 
 			changed = ISC_TRUE;
-			if (!strcasecmp(isc_commandline_argument, "none")) {
-				unsetact = ISC_TRUE;
-			} else {
-				setact = ISC_TRUE;
-				act = strtotime(isc_commandline_argument,
-						now, now);
-			}
+			act = strtotime(isc_commandline_argument,
+					now, now, &setact);
+			unsetact = !setact;
 			break;
 		case 'R':
 			if (setrev || unsetrev)
 				fatal("-R specified more than once");
 
 			changed = ISC_TRUE;
-			if (!strcasecmp(isc_commandline_argument, "none")) {
-				unsetrev = ISC_TRUE;
-			} else {
-				setrev = ISC_TRUE;
-				rev = strtotime(isc_commandline_argument,
-						now, now);
-			}
+			rev = strtotime(isc_commandline_argument,
+					now, now, &setrev);
+			unsetrev = !setrev;
 			break;
 		case 'I':
 			if (setinact || unsetinact)
 				fatal("-I specified more than once");
 
 			changed = ISC_TRUE;
-			if (!strcasecmp(isc_commandline_argument, "none")) {
-				unsetinact = ISC_TRUE;
-			} else {
-				setinact = ISC_TRUE;
-				inact = strtotime(isc_commandline_argument,
-						now, now);
-			}
+			inact = strtotime(isc_commandline_argument,
+					now, now, &setinact);
+			unsetinact = !setinact;
 			break;
 		case 'D':
 			if (setdel || unsetdel)
 				fatal("-D specified more than once");
 
 			changed = ISC_TRUE;
-			if (!strcasecmp(isc_commandline_argument, "none")) {
-				unsetdel = ISC_TRUE;
-			} else {
-				setdel = ISC_TRUE;
-				del = strtotime(isc_commandline_argument,
-						now, now);
-			}
+			del = strtotime(isc_commandline_argument,
+					now, now, &setdel);
+			unsetdel = !setdel;
 			break;
 		case 'S':
 			predecessor = isc_commandline_argument;

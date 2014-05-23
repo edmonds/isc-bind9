@@ -26,10 +26,10 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_MAKE_INCLUDES@
 
-CINCLUDES =	-I. -Iinclude ${ISC_INCLUDES}
+CINCLUDES =	-I. -Iinclude ${ISC_INCLUDES} @ISC_OPENSSL_INC@
 CDEFINES =	-DTESTS="\"${top_builddir}/lib/isc/tests/\""
 
-ISCLIBS =	../libisc.@A@
+ISCLIBS =	../libisc.@A@ @ISC_OPENSSL_LIBS@
 ISCDEPLIBS =	../libisc.@A@
 
 LIBS =		@LIBS@ @ATFLIBS@
@@ -38,16 +38,16 @@ OBJS =		isctest.@O@
 SRCS =		isctest.c taskpool_test.c socket_test.c hash_test.c \
 		lex_test.c \
 		sockaddr_test.c symtab_test.c task_test.c queue_test.c \
-		parse_test.c pool_test.c regex_test.c safe_test.c \
-		time_test.c
+		parse_test.c pool_test.c regex_test.c socket_test.c \
+		safe_test.c time_test.c aes_test.c
 
 SUBDIRS =
 TARGETS =	taskpool_test@EXEEXT@ socket_test@EXEEXT@ hash_test@EXEEXT@ \
 		lex_test@EXEEXT@ \
 		sockaddr_test@EXEEXT@ symtab_test@EXEEXT@ task_test@EXEEXT@ \
 		queue_test@EXEEXT@ parse_test@EXEEXT@ pool_test@EXEEXT@ \
-		regex_test@EXEEXT@ safe_test@EXEEXT@ \
-		time_test@EXEEXT@
+		regex_test@EXEEXT@ socket_test@EXEEXT@ safe_test@EXEEXT@ \
+		time_test@EXEEXT@ aes_test@EXEEXT@
 
 @BIND9_MAKE_RULES@
 
@@ -102,6 +102,10 @@ safe_test@EXEEXT@: safe_test.@O@ ${ISCDEPLIBS}
 time_test@EXEEXT@: time_test.@O@ ${ISCDEPLIBS}
 	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
 			time_test.@O@ ${ISCLIBS} ${LIBS}
+
+aes_test@EXEEXT@: aes_test.@O@ ${ISCDEPLIBS}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
+			aes_test.@O@ ${ISCLIBS} ${LIBS}
 
 unit::
 	sh ${top_srcdir}/unit/unittest.sh

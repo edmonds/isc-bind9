@@ -239,6 +239,46 @@ dns_name_invalidate(dns_name_t *name) {
 	ISC_LINK_INIT(name, link);
 }
 
+isc_boolean_t
+dns_name_isvalid(const dns_name_t *name) {
+	unsigned char *ndata, *offsets;
+	unsigned int offset, count, length, nlabels;
+
+	if (!VALID_NAME(name))
+		return (ISC_FALSE);
+
+	if (name->length > 255U || name->labels > 127U)
+		return (ISC_FALSE);
+
+	ndata = name->ndata;
+	length = name->length;
+	offsets = name->offsets;
+	offset = 0;
+	nlabels = 0;
+
+	while (offset != length) {
+		count = *ndata;
+		if (count > 63U)
+			return (ISC_FALSE);
+		if (offsets != NULL && offsets[nlabels] != offset)
+			return (ISC_FALSE);
+
+		nlabels++;
+		offset += count + 1;
+		ndata += count + 1;
+		if (offset > length)
+			return (ISC_FALSE);
+
+		if (count == 0)
+			break;
+	}
+
+	if (nlabels != name->labels || offset != name->length)
+		return (ISC_FALSE);
+
+	return (ISC_TRUE);
+}
+
 void
 dns_name_setbuffer(dns_name_t *name, isc_buffer_t *buffer) {
 	/*
@@ -1161,7 +1201,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 				count++;
 				CONVERTTOASCII(c);
 				if (downcase)
-					c = maptolower[(int)c];
+					c = maptolower[c & 0xff];
 				*ndata++ = c;
 				nrem--;
 				nused++;
@@ -1185,7 +1225,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 				count++;
 				CONVERTTOASCII(c);
 				if (downcase)
-					c = maptolower[(int)c];
+					c = maptolower[c & 0xff];
 				*ndata++ = c;
 				nrem--;
 				nused++;
@@ -1200,7 +1240,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 			if (!isdigit(c & 0xff))
 				return (DNS_R_BADESCAPE);
 			value *= 10;
-			value += digitvalue[(int)c];
+			value += digitvalue[c & 0xff];
 			digits++;
 			if (digits == 3) {
 				if (value > 255)
@@ -1252,7 +1292,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 				while (n2 > 0) {
 					c = *label++;
 					if (downcase)
-						c = maptolower[(int)c];
+						c = maptolower[c & 0xff];
 					*ndata++ = c;
 					n2--;
 				}

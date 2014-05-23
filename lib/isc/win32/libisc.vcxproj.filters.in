@@ -26,6 +26,11 @@
     <None Include="libisc.def" />
   </ItemGroup>
   <ItemGroup>
+@IF AES
+    <ClInclude Include="..\include\isc\aes.h">
+      <Filter>Library Header Files</Filter>
+    </ClInclude>
+@END AES
     <ClInclude Include="..\include\isc\app.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
@@ -42,9 +47,6 @@
       <Filter>Library Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\isc\bind9.h">
-      <Filter>Library Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\isc\bitstring.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\isc\boolean.h">
@@ -102,9 +104,6 @@
       <Filter>Library Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\isc\interfaceiter.h">
-      <Filter>Library Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\isc\ipv6.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\isc\iterated_hash.h">
@@ -209,6 +208,9 @@
     <ClInclude Include="..\include\isc\rwlock.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\isc\safe.h">
+      <Filter>Library Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\include\isc\serial.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
@@ -222,9 +224,6 @@
       <Filter>Library Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\isc\socket.h">
-      <Filter>Library Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\isc\stats.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\isc\stdio.h">
@@ -263,6 +262,29 @@
     <ClInclude Include="..\include\isc\xml.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
+@IF PKCS11
+    <ClInclude Include="..\include\pk11\constants.h">
+      <Filter>Library Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\pk11\internal.h">
+      <Filter>Library Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\pk11\pk11.h">
+      <Filter>Library Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\pk11\result.h">
+      <Filter>Library Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\pkcs11\pkcs11.h">
+      <Filter>Pkcs11 Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\pkcs11\pkcs11f.h">
+      <Filter>Pkcs11 Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\pkcs11\pkcs11t.h">
+      <Filter>Pkcs11 Header Files</Filter>
+    </ClInclude>
+@END PKCS11
     <ClInclude Include="include\isc\bind_registry.h">
       <Filter>Win32 Header Files</Filter>
     </ClInclude>
@@ -338,6 +360,11 @@
     <ClInclude Include="unistd.h">
       <Filter>Win32 Header Files</Filter>
     </ClInclude>
+@IF PKCS11
+    <ClInclude Include="include\pkcs11\cryptoki.h">
+      <Filter>Win32 Header Files</Filter>
+    </ClInclude>
+@END PKCS11
 @IF ATOMIC
     <ClInclude Include="include\isc\atomic.h">
 @ELSE ATOMIC
@@ -428,6 +455,16 @@
     <ClCompile Include="win32os.c">
       <Filter>Win32 Source Files</Filter>
     </ClCompile>
+@IF PKCS11
+    <ClCompile Include="pk11_api.c">
+      <Filter>Win32 Source Files</Filter>
+    </ClCompile>
+@END PKCS11
+@IF AES
+    <ClCompile Include="..\aes.c">
+      <Filter>Win32 Source Files</Filter>
+    </ClCompile>
+@END AES
     <ClCompile Include="..\assertions.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
@@ -444,9 +481,6 @@
       <Filter>Library Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\bind9.c">
-      <Filter>Library Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\bitstring.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\buffer.c">
@@ -515,6 +549,9 @@
     <ClCompile Include="..\mem.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\nls\msgcat.c">
+      <Filter>Library Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\mutexblock.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
@@ -534,9 +571,6 @@
       <Filter>Library Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\portset.c">
-      <Filter>Library Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\nls\msgcat.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\quota.c">
@@ -564,6 +598,9 @@
       <Filter>Library Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\rwlock.c">
+      <Filter>Library Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\safe.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\serial.c">
@@ -599,5 +636,13 @@
     <ClCompile Include="..\tm.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
+@IF PKCS11
+    <ClCompile Include="..\pk11.c">
+      <Filter>Library Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\pk11_result.c">
+      <Filter>Library Source Files</Filter>
+    </ClCompile>
+@END PKCS11
   </ItemGroup>
 </Project>
