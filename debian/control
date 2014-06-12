@@ -16,8 +16,7 @@ Package: isc-bind9
 Architecture: any
 Pre-Depends: libisc-bind9 (= ${binary:Version}), isc-bind9-utils (= ${binary:Version})
 Depends: ${misc:Depends}, ${shlibs:Depends}, adduser
-Conflicts: bind, bind9
-Provides: bind9
+Conflicts: bind9
 Recommends: isc-bind9-dnsutils
 Suggests: isc-bind9-doc
 Description: ISC BIND9 DNS server
@@ -54,8 +53,7 @@ Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
  libisc-bind9 (= ${binary:Version}),
  python
-Conflicts: bind9utils
-Provides: bind9utils
+Conflicts: bind9, bind9utils
 Description: ISC BIND9 server utilities
  Internet Systems Consortium, Inc.'s Berkeley Internet Name Domain software
  distribution.
