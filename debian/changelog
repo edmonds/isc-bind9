@@ -1,3 +1,10 @@
+isc-bind9 (9.10.0.P2-1~dnspkg70+1) wheezy-dnspkg; urgency=medium
+
+  * New upstream release.
+    - CVE-2014-3859.
+
+ -- Robert S. Edmonds <edmonds@debian.org>  Thu, 12 Jun 2014 14:12:27 -0400
+
 isc-bind9 (9.10.0.P1-1~dnspkg70+1) wheezy-dnspkg; urgency=medium
 
   * New upstream release.
