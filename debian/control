@@ -14,8 +14,8 @@ Homepage: https://www.isc.org/downloads/bind/
 
 Package: isc-bind9
 Architecture: any
-Pre-Depends: libisc-bind9 (= ${binary:Version}), isc-bind9-utils (= ${binary:Version})
-Depends: ${misc:Depends}, ${shlibs:Depends}, adduser
+Pre-Depends: libisc-bind9 (= ${binary:Version})
+Depends: ${misc:Depends}, ${shlibs:Depends}, adduser, isc-bind9-utils (= ${binary:Version})
 Conflicts: bind9
 Recommends: isc-bind9-dnsutils
 Suggests: isc-bind9-doc
@@ -50,8 +50,8 @@ Description: ISC BIND9 development files
 
 Package: isc-bind9-utils
 Architecture: any
+Pre-Depends: libisc-bind9 (= ${binary:Version})
 Depends: ${misc:Depends}, ${shlibs:Depends},
- libisc-bind9 (= ${binary:Version}),
  python
 Conflicts: bind9, bind9utils
 Description: ISC BIND9 server utilities
