@@ -12,10 +12,10 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-sh clean.sh
-
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
+
+$SHELL clean.sh
 
 test -r $RANDFILE || $GENRANDOM 400 $RANDFILE
 
@@ -25,6 +25,7 @@ rm -f ns1/root.db.signed
 touch ns2/trusted.conf
 cp ns2/bits.db.in ns2/bits.db
 cp ns2/bits.db.in ns2/retransfer.db
+cp ns2/bits.db.in ns2/retransfer3.db
 rm -f ns2/bits.db.jnl
 
 cp ns3/master.db.in ns3/master.db
@@ -40,5 +41,5 @@ rm -f ns4/noixfr.db.jnl
 
 cp ns5/named.conf.pre ns5/named.conf
 
-(cd ns3; sh -e sign.sh)
-(cd ns1; sh -e sign.sh)
+(cd ns3; $SHELL -e sign.sh)
+(cd ns1; $SHELL -e sign.sh)

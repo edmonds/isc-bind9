@@ -81,10 +81,15 @@
 if NOT Exist ..\Build mkdir ..\Build
 if NOT Exist ..\Build\Debug mkdir ..\Build\Debug
 
+echo Copying COPYRIGHT notice.
+
+copy ..\COPYRIGHT ..\Build\Debug
+
 @IF OPENSSL
-echo Copying the OpenSSL DLL.
+echo Copying the OpenSSL DLL and LICENSE.
 
 copy @OPENSSL_DLL@ ..\Build\Debug\
+copy @OPENSSL_PATH@\LICENSE ..\Build\Debug\OpenSSL-LICENSE
 @END OPENSSL
 
 @IF LIBXML2
@@ -276,6 +281,7 @@ copy /Y @VCREDIST_PATH@ ..\Build\Release\
     <ClInclude Include="..\include\isc\buffer.h" />
     <ClInclude Include="..\include\isc\bufferlist.h" />
     <ClInclude Include="..\include\isc\commandline.h" />
+    <ClInclude Include="..\include\isc\counter.h" />
     <ClInclude Include="..\include\isc\crc64.h" />
     <ClInclude Include="..\include\isc\entropy.h" />
     <ClInclude Include="..\include\isc\error.h" />
@@ -400,6 +406,7 @@ copy /Y @VCREDIST_PATH@ ..\Build\Release\
     <ClCompile Include="..\buffer.c" />
     <ClCompile Include="..\bufferlist.c" />
     <ClCompile Include="..\commandline.c" />
+    <ClCompile Include="..\counter.c" />
     <ClCompile Include="..\crc64.c" />
     <ClCompile Include="..\error.c" />
     <ClCompile Include="..\event.c" />

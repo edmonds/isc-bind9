@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1380,6 +1380,16 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 			}
 		} else
 			covers = 0;
+
+		/*
+		 * Check the ownername of NSEC3 records
+		 */
+		if (rdtype == dns_rdatatype_nsec3 &&
+		    !dns_rdata_checkowner(name, msg->rdclass, rdtype,
+					  ISC_FALSE)) {
+			result = DNS_R_BADOWNERNAME;
+			goto cleanup;
+		}
 
 		/*
 		 * If we are doing a dynamic update or this is a meta-type,
@@ -3221,14 +3231,13 @@ render_ecs(isc_buffer_t *optbuf, isc_buffer_t *target) {
 		inet_ntop(AF_INET6, addr, addr_text, sizeof(addr_text));
 	else {
 		snprintf(addr_text, sizeof(addr_text),
-			 "Unsupported family %d",
-			 family);
+			 "Unsupported family %u", family);
 		ADD_STRING(target, addr_text);
 		return (ISC_R_SUCCESS);
 	}
 
 	ADD_STRING(target, addr_text);
-	sprintf(addr_text, "/%d/%d", addrlen, scopelen);
+	snprintf(addr_text, sizeof(addr_text), "/%d/%d", addrlen, scopelen);
 	ADD_STRING(target, addr_text);
 	return (ISC_R_SUCCESS);
 }
@@ -3307,7 +3316,6 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 				continue;
 			} else if (optcode == DNS_OPT_EXPIRE) {
 				if (optlen == 4) {
-					char buf[sizeof("4294967296")];
 					isc_uint32_t secs;
 					secs = isc_buffer_getuint32(&optbuf);
 					ADD_STRING(target, "; EXPIRE: ");
@@ -3321,7 +3329,7 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 				ADD_STRING(target, "; EXPIRE");
 			} else {
 				ADD_STRING(target, "; OPT=");
-				sprintf(buf, "%u", optcode);
+				snprintf(buf, sizeof(buf), "%u", optcode);
 				ADD_STRING(target, buf);
 			}
 
@@ -3340,7 +3348,8 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 						sep = " ";
 						break;
 					}
-					sprintf(buf, "%02x%s", optdata[i], sep);
+					snprintf(buf, sizeof(buf), "%02x%s",
+						 optdata[i], sep);
 					ADD_STRING(target, buf);
 				}
 

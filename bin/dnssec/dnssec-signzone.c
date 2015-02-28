@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -28,8 +28,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: dnssec-signzone.c,v 1.285.32.1 2012/02/07 00:44:12 each Exp $ */
 
 /*! \file */
 
@@ -138,7 +136,7 @@ static isc_mem_t *mctx = NULL;
 static isc_entropy_t *ectx = NULL;
 static dns_ttl_t zone_soa_min_ttl;
 static dns_ttl_t soa_ttl;
-static FILE *fp = NULL;
+static FILE *outfp = NULL;
 static char *tempfile = NULL;
 static const dns_master_style_t *masterstyle;
 static dns_masterformat_t inputformat = dns_masterformat_text;
@@ -158,7 +156,7 @@ static dns_name_t *gorigin;		/* The database origin */
 static int nsec3flags = 0;
 static dns_iterations_t nsec3iter = 10U;
 static unsigned char saltbuf[255];
-static unsigned char *salt = saltbuf;
+static unsigned char *gsalt = saltbuf;
 static size_t salt_length = 0;
 static isc_task_t *master = NULL;
 static unsigned int ntasks = 0;
@@ -210,7 +208,7 @@ dumpnode(dns_name_t *name, dns_dbnode_t *node) {
 
 	if (!output_dnssec_only) {
 		result = dns_master_dumpnodetostream(mctx, gdb, gversion, node,
-						     name, masterstyle, fp);
+						     name, masterstyle, outfp);
 		check_result(result, "dns_master_dumpnodetostream");
 		return;
 	}
@@ -252,7 +250,7 @@ dumpnode(dns_name_t *name, dns_dbnode_t *node) {
 		check_result(result, "dns_master_rdatasettotext");
 
 		isc_buffer_usedregion(buffer, &r);
-		result = isc_stdio_write(r.base, 1, r.length, fp, NULL);
+		result = isc_stdio_write(r.base, 1, r.length, outfp, NULL);
 		check_result(result, "isc_stdio_write");
 		isc_buffer_clear(buffer);
 
@@ -293,8 +291,6 @@ signwithkey(dns_name_t *name, dns_rdataset_t *rdataset, dst_key_t *key,
 				 mctx, &b, &trdata);
 	isc_entropy_stopcallbacksources(ectx);
 	if (result != ISC_R_SUCCESS) {
-		char keystr[DST_KEY_FORMATSIZE];
-		dst_key_format(key, keystr, sizeof(keystr));
 		fatal("dnskey '%s' failed to sign data: %s",
 		      keystr, isc_result_totext(result));
 	}
@@ -506,6 +502,8 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 	result = dns_db_findrdataset(gdb, node, gversion, dns_rdatatype_rrsig,
 				     set->type, 0, &sigset, NULL);
 	if (result == ISC_R_NOTFOUND) {
+		vbprintf(2, "no existing signatures for %s/%s\n",
+			 namestr, typestr);
 		result = ISC_R_SUCCESS;
 		nosigs = ISC_TRUE;
 	}
@@ -742,7 +740,7 @@ hashlist_add(hashlist_t *l, const unsigned char *hash, size_t len)
 static void
 hashlist_add_dns_name(hashlist_t *l, /*const*/ dns_name_t *name,
 		      unsigned int hashalg, unsigned int iterations,
-		      const unsigned char *salt, size_t salt_length,
+		      const unsigned char *salt, size_t salt_len,
 		      isc_boolean_t speculative)
 {
 	char nametext[DNS_NAME_FORMATSIZE];
@@ -751,7 +749,7 @@ hashlist_add_dns_name(hashlist_t *l, /*const*/ dns_name_t *name,
 	size_t i;
 
 	len = isc_iterated_hash(hash, hashalg, iterations,
-				salt, (int)salt_length,
+				salt, (int)salt_len,
 				name->ndata, name->length);
 	if (verbose) {
 		dns_name_format(name, nametext, sizeof nametext);
@@ -833,7 +831,7 @@ hashlist_exists(const hashlist_t *l,
 static void
 addnowildcardhash(hashlist_t *l, /*const*/ dns_name_t *name,
 		  unsigned int hashalg, unsigned int iterations,
-		  const unsigned char *salt, size_t salt_length)
+		  const unsigned char *salt, size_t salt_len)
 {
 	dns_fixedname_t fixed;
 	dns_name_t *wild;
@@ -860,7 +858,7 @@ addnowildcardhash(hashlist_t *l, /*const*/ dns_name_t *name,
 		fprintf(stderr, "adding no-wildcardhash for %s\n", namestr);
 	}
 
-	hashlist_add_dns_name(l, wild, hashalg, iterations, salt, salt_length,
+	hashlist_add_dns_name(l, wild, hashalg, iterations, salt, salt_len,
 			      ISC_TRUE);
 }
 
@@ -1661,10 +1659,14 @@ remove_records(dns_dbnode_t *node, dns_rdatatype_t which,
 }
 
 /*
- * Remove signatures covering the given type (0 == all signatures).
+ * Remove signatures covering the given type.  If type == 0,
+ * then remove all signatures, unless this is a delegation, in
+ * which case remove all signatures except for DS or nsec_datatype
  */
 static void
-remove_sigs(dns_dbnode_t *node, dns_rdatatype_t which) {
+remove_sigs(dns_dbnode_t *node, isc_boolean_t delegation,
+	    dns_rdatatype_t which)
+{
 	isc_result_t result;
 	dns_rdatatype_t type, covers;
 	dns_rdatasetiter_t *rdsiter = NULL;
@@ -1681,14 +1683,21 @@ remove_sigs(dns_dbnode_t *node, dns_rdatatype_t which) {
 		covers = rdataset.covers;
 		dns_rdataset_disassociate(&rdataset);
 
-		if (type == dns_rdatatype_rrsig &&
-		    (covers == which || which == 0))
-		{
-			result = dns_db_deleterdataset(gdb, node, gversion,
-						       type, covers);
-			check_result(result, "dns_db_deleterdataset()");
+		if (type != dns_rdatatype_rrsig)
 			continue;
-		}
+
+		if (which == 0 && delegation &&
+		    (dns_rdatatype_atparent(covers) ||
+		     (nsec_datatype == dns_rdatatype_nsec &&
+		      covers == nsec_datatype)))
+			continue;
+
+		if (which != 0 && covers != which)
+			continue;
+
+		result = dns_db_deleterdataset(gdb, node, gversion,
+					       type, covers);
+		check_result(result, "dns_db_deleterdataset()");
 	}
 	dns_rdatasetiter_destroy(&rdsiter);
 }
@@ -1775,7 +1784,7 @@ nsecify(void) {
 		if (is_delegation(gdb, gversion, gorigin, name, node, &nsttl)) {
 			zonecut = dns_fixedname_name(&fzonecut);
 			dns_name_copy(name, zonecut, NULL);
-			remove_sigs(node, 0);
+			remove_sigs(node, ISC_TRUE, 0);
 			if (generateds)
 				add_ds(name, node, nsttl);
 		}
@@ -1797,7 +1806,7 @@ nsecify(void) {
 			    (zonecut != NULL &&
 			     dns_name_issubdomain(nextname, zonecut)))
 			{
-				remove_sigs(nextnode, 0);
+				remove_sigs(nextnode, ISC_FALSE, 0);
 				remove_records(nextnode, dns_rdatatype_nsec,
 					       ISC_FALSE);
 				dns_db_detachnode(gdb, &nextnode);
@@ -1824,7 +1833,7 @@ nsecify(void) {
 }
 
 static void
-addnsec3param(const unsigned char *salt, size_t salt_length,
+addnsec3param(const unsigned char *salt, size_t salt_len,
 	      dns_iterations_t iterations)
 {
 	dns_dbnode_t *node = NULL;
@@ -1845,7 +1854,7 @@ addnsec3param(const unsigned char *salt, size_t salt_length,
 	nsec3param.flags = 0;
 	nsec3param.hash = unknownalg ? DNS_NSEC3_UNKNOWNALG : dns_hash_sha1;
 	nsec3param.iterations = iterations;
-	nsec3param.salt_length = (unsigned char)salt_length;
+	nsec3param.salt_length = (unsigned char)salt_len;
 	DE_CONST(salt, nsec3param.salt);
 
 	isc_buffer_init(&b, nsec3parambuf, sizeof(nsec3parambuf));
@@ -1884,7 +1893,7 @@ addnsec3param(const unsigned char *salt, size_t salt_length,
 
 static void
 addnsec3(dns_name_t *name, dns_dbnode_t *node,
-	 const unsigned char *salt, size_t salt_length,
+	 const unsigned char *salt, size_t salt_len,
 	 unsigned int iterations, hashlist_t *hashlist,
 	 dns_ttl_t ttl)
 {
@@ -1898,7 +1907,7 @@ addnsec3(dns_name_t *name, dns_dbnode_t *node,
 	isc_result_t result;
 	dns_dbnode_t *nsec3node = NULL;
 	char namebuf[DNS_NAME_FORMATSIZE];
-	size_t hash_length;
+	size_t hash_len;
 
 	dns_name_format(name, namebuf, sizeof(namebuf));
 
@@ -1906,16 +1915,16 @@ addnsec3(dns_name_t *name, dns_dbnode_t *node,
 	dns_rdataset_init(&rdataset);
 
 	dns_name_downcase(name, name, NULL);
-	result = dns_nsec3_hashname(&hashname, hash, &hash_length,
+	result = dns_nsec3_hashname(&hashname, hash, &hash_len,
 				    name, gorigin, dns_hash_sha1, iterations,
-				    salt, salt_length);
+				    salt, salt_len);
 	check_result(result, "addnsec3: dns_nsec3_hashname()");
 	nexthash = hashlist_findnext(hashlist, hash);
 	result = dns_nsec3_buildrdata(gdb, gversion, node,
 				      unknownalg ?
 					  DNS_NSEC3_UNKNOWNALG : dns_hash_sha1,
 				      nsec3flags, iterations,
-				      salt, salt_length,
+				      salt, salt_len,
 				      nexthash, ISC_SHA1_DIGESTLENGTH,
 				      nsec3buffer, &rdata);
 	check_result(result, "addnsec3: dns_nsec3_buildrdata()");
@@ -1951,7 +1960,7 @@ addnsec3(dns_name_t *name, dns_dbnode_t *node,
 static void
 nsec3clean(dns_name_t *name, dns_dbnode_t *node,
 	   unsigned int hashalg, unsigned int iterations,
-	   const unsigned char *salt, size_t salt_length, hashlist_t *hashlist)
+	   const unsigned char *salt, size_t salt_len, hashlist_t *hashlist)
 {
 	dns_label_t label;
 	dns_rdata_nsec3_t nsec3;
@@ -2011,8 +2020,8 @@ nsec3clean(dns_name_t *name, dns_dbnode_t *node,
 		check_result(result, "dns_rdata_tostruct");
 		if (exists && nsec3.hash == hashalg &&
 		    nsec3.iterations == iterations &&
-		    nsec3.salt_length == salt_length &&
-		    !memcmp(nsec3.salt, salt, salt_length))
+		    nsec3.salt_length == salt_len &&
+		    !memcmp(nsec3.salt, salt, salt_len))
 			continue;
 		rdatalist.rdclass = rdata.rdclass;
 		rdatalist.type = rdata.type;
@@ -2172,7 +2181,7 @@ cleanup_zone(void) {
  */
 static void
 nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
-	 const unsigned char *salt, size_t salt_length, hashlist_t *hashlist)
+	 const unsigned char *salt, size_t salt_len, hashlist_t *hashlist)
 {
 	dns_dbiterator_t *dbiter = NULL;
 	dns_dbnode_t *node = NULL, *nextnode = NULL;
@@ -2237,7 +2246,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 			if (!dns_name_issubdomain(nextname, gorigin) ||
 			    (zonecut != NULL &&
 			     dns_name_issubdomain(nextname, zonecut))) {
-				remove_sigs(nextnode, 0);
+				remove_sigs(nextnode, ISC_FALSE, 0);
 				dns_db_detachnode(gdb, &nextnode);
 				result = dns_dbiterator_next(dbiter);
 				continue;
@@ -2247,7 +2256,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 			{
 				zonecut = dns_fixedname_name(&fzonecut);
 				dns_name_copy(nextname, zonecut, NULL);
-				remove_sigs(nextnode, 0);
+				remove_sigs(nextnode, ISC_TRUE, 0);
 				if (generateds)
 					add_ds(nextname, nextnode, nsttl);
 				if (OPTOUT(nsec3flags) &&
@@ -2268,7 +2277,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 			      isc_result_totext(result));
 		dns_name_downcase(name, name, NULL);
 		hashlist_add_dns_name(hashlist, name, hashalg, iterations,
-				      salt, salt_length, ISC_FALSE);
+				      salt, salt_len, ISC_FALSE);
 		dns_db_detachnode(gdb, &node);
 		/*
 		 * Add hashs for empty nodes.  Use closest encloser logic.
@@ -2279,16 +2288,16 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 		dns_name_downcase(nextname, nextname, NULL);
 		dns_name_fullcompare(name, nextname, &order, &nlabels);
 		addnowildcardhash(hashlist, name, hashalg, iterations,
-				  salt, salt_length);
+				  salt, salt_len);
 		count = dns_name_countlabels(nextname);
 		while (count > nlabels + 1) {
 			count--;
 			dns_name_split(nextname, count, NULL, nextname);
 			hashlist_add_dns_name(hashlist, nextname, hashalg,
-					      iterations, salt, salt_length,
+					      iterations, salt, salt_len,
 					      ISC_FALSE);
 			addnowildcardhash(hashlist, nextname, hashalg,
-					  iterations, salt, salt_length);
+					  iterations, salt, salt_len);
 		}
 	}
 	dns_dbiterator_destroy(&dbiter);
@@ -2311,7 +2320,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 	zonecut = NULL;
 	done = ISC_FALSE;
 
-	addnsec3param(salt, salt_length, iterations);
+	addnsec3param(salt, salt_len, iterations);
 
 	/*
 	 * Clean out NSEC3 records which don't match this chain.
@@ -2324,7 +2333,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 	     result = dns_dbiterator_next(dbiter)) {
 		result = dns_dbiterator_current(dbiter, &node, name);
 		check_dns_dbiterator_current(result);
-		nsec3clean(name, node, hashalg, iterations, salt, salt_length,
+		nsec3clean(name, node, hashalg, iterations, salt, salt_len,
 			   hashlist);
 		dns_db_detachnode(gdb, &node);
 	}
@@ -2398,7 +2407,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 		 * We need to pause here to release the lock on the database.
 		 */
 		dns_dbiterator_pause(dbiter);
-		addnsec3(name, node, salt, salt_length, iterations,
+		addnsec3(name, node, salt, salt_len, iterations,
 			 hashlist, zone_soa_min_ttl);
 		dns_db_detachnode(gdb, &node);
 		/*
@@ -2409,7 +2418,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 		while (count > nlabels + 1) {
 			count--;
 			dns_name_split(nextname, count, NULL, nextname);
-			addnsec3(nextname, NULL, salt, salt_length,
+			addnsec3(nextname, NULL, salt, salt_len,
 				 iterations, hashlist, zone_soa_min_ttl);
 		}
 	}
@@ -2671,7 +2680,7 @@ warnifallksk(dns_db_t *db) {
 }
 
 static void
-set_nsec3params(isc_boolean_t update_chain, isc_boolean_t set_salt,
+set_nsec3params(isc_boolean_t update, isc_boolean_t set_salt,
 		isc_boolean_t set_optout, isc_boolean_t set_iter)
 {
 	isc_result_t result;
@@ -2699,7 +2708,7 @@ set_nsec3params(isc_boolean_t update_chain, isc_boolean_t set_salt,
 
 	nsec_datatype = dns_rdatatype_nsec3;
 
-	if (!update_chain && set_salt) {
+	if (!update && set_salt) {
 		if (salt_length != orig_saltlen ||
 		    memcmp(saltbuf, orig_salt, salt_length) != 0)
 			fatal("An NSEC3 chain exists with a different salt. "
@@ -2707,10 +2716,10 @@ set_nsec3params(isc_boolean_t update_chain, isc_boolean_t set_salt,
 	} else if (!set_salt) {
 		salt_length = orig_saltlen;
 		memmove(saltbuf, orig_salt, orig_saltlen);
-		salt = saltbuf;
+		gsalt = saltbuf;
 	}
 
-	if (!update_chain && set_iter) {
+	if (!update && set_iter) {
 		if (nsec3iter != orig_iter)
 			fatal("An NSEC3 chain exists with different "
 			      "iterations. Use -u to update it.");
@@ -2744,7 +2753,7 @@ set_nsec3params(isc_boolean_t update_chain, isc_boolean_t set_salt,
 	result = dns_rdata_tostruct(&rdata, &nsec3, NULL);
 	check_result(result, "dns_rdata_tostruct");
 
-	if (!update_chain && set_optout) {
+	if (!update && set_optout) {
 		if (nsec3flags != nsec3.flags)
 			fatal("An NSEC3 chain exists with%s OPTOUT. "
 			      "Use -u -%s to %s it.",
@@ -2967,6 +2976,7 @@ usage(void) {
 	fprintf(stderr, "\t-j jitter:\n");
 	fprintf(stderr, "\t\trandomize signature end time up to jitter seconds\n");
 	fprintf(stderr, "\t-v debuglevel (0)\n");
+	fprintf(stderr, "\t-V:\tprint version information\n");
 	fprintf(stderr, "\t-o origin:\n");
 	fprintf(stderr, "\t\tzone origin (name of zonefile)\n");
 	fprintf(stderr, "\t-f outfile:\n");
@@ -3025,6 +3035,7 @@ usage(void) {
 	fprintf(stderr, "Signing Keys: ");
 	fprintf(stderr, "(default: all zone keys that have private keys)\n");
 	fprintf(stderr, "\tkeyfile (Kname+alg+tag)\n");
+
 	exit(0);
 }
 
@@ -3107,7 +3118,7 @@ main(int argc, char *argv[]) {
 
 	/* Unused letters: Bb G J q Yy (and F is reserved). */
 #define CMDLINE_FLAGS \
-	"3:AaCc:Dd:E:e:f:FghH:i:I:j:K:k:L:l:m:M:n:N:o:O:PpQRr:s:ST:tuUv:X:xzZ:"
+	"3:AaCc:Dd:E:e:f:FghH:i:I:j:K:k:L:l:m:M:n:N:o:O:PpQRr:s:ST:tuUv:VX:xzZ:"
 
 	/*
 	 * Process memory debugging argument first.
@@ -3225,10 +3236,6 @@ main(int argc, char *argv[]) {
 				fatal("iterations must be numeric");
 			if (nsec3iter  > 0xffffU)
 				fatal("iterations too big");
-			break;
-
-		case 'h':
-			usage();
 			break;
 
 		case 'I':
@@ -3388,17 +3395,24 @@ main(int argc, char *argv[]) {
 			if (isc_commandline_option != '?')
 				fprintf(stderr, "%s: invalid argument -%c\n",
 					program, isc_commandline_option);
+			/* FALLTHROUGH */
+		case 'h':
+			/* Does not return. */
 			usage();
+
+		case 'V':
+			/* Does not return. */
+			version(program);
+
+		case 'Z':	/* Undocumented test options */
+			if (!strcmp(isc_commandline_argument, "nonsecify"))
+				nonsecify = ISC_TRUE;
 			break;
 
 		default:
 			fprintf(stderr, "%s: unhandled option -%c\n",
 				program, isc_commandline_option);
 			exit(1);
-		case 'Z':	/* Undocumented test options */
-			if (!strcmp(isc_commandline_argument, "nonsecify"))
-				nonsecify = ISC_TRUE;
-			break;
 		}
 	}
 
@@ -3449,7 +3463,7 @@ main(int argc, char *argv[]) {
 	if (directory == NULL)
 		directory = ".";
 
-	setup_logging(verbose, mctx, &log);
+	setup_logging(mctx, &log);
 
 	argc -= isc_commandline_index;
 	argv += isc_commandline_index;
@@ -3665,7 +3679,7 @@ main(int argc, char *argv[]) {
 
 	if (!nonsecify) {
 		if (IS_NSEC3)
-			nsec3ify(dns_hash_sha1, nsec3iter, salt, salt_length,
+			nsec3ify(dns_hash_sha1, nsec3iter, gsalt, salt_length,
 				 &hashlist);
 		else
 			nsecify();
@@ -3681,7 +3695,7 @@ main(int argc, char *argv[]) {
 	}
 
 	if (output_stdout) {
-		fp = stdout;
+		outfp = stdout;
 		if (outputformatstr == NULL)
 			masterstyle = &dns_master_style_full;
 	} else {
@@ -3694,9 +3708,9 @@ main(int argc, char *argv[]) {
 		check_result(result, "isc_file_mktemplate");
 
 		if (outputformat == dns_masterformat_text)
-			result = isc_file_openunique(tempfile, &fp);
+			result = isc_file_openunique(tempfile, &outfp);
 		else
-			result = isc_file_bopenunique(tempfile, &fp);
+			result = isc_file_bopenunique(tempfile, &outfp);
 		if (result != ISC_R_SUCCESS)
 			fatal("failed to open temporary output file: %s",
 			      isc_result_totext(result));
@@ -3704,8 +3718,8 @@ main(int argc, char *argv[]) {
 		setfatalcallback(&removetempfile);
 	}
 
-	print_time(fp);
-	print_version(fp);
+	print_time(outfp);
+	print_version(outfp);
 
 	result = isc_taskmgr_create(mctx, ntasks, 0, &taskmgr);
 	if (result != ISC_R_SUCCESS)
@@ -3775,7 +3789,7 @@ main(int argc, char *argv[]) {
 		}
 		result = dns_master_dumptostream3(mctx, gdb, gversion,
 						  masterstyle, outputformat,
-						  &header, fp);
+						  &header, outfp);
 		check_result(result, "dns_master_dumptostream3");
 	}
 
@@ -3784,7 +3798,7 @@ main(int argc, char *argv[]) {
 		DESTROYLOCK(&statslock);
 
 	if (!output_stdout) {
-		result = isc_stdio_close(fp);
+		result = isc_stdio_close(outfp);
 		check_result(result, "isc_stdio_close");
 		removefile = ISC_FALSE;
 

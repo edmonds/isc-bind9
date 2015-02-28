@@ -15,8 +15,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
-
 /*! \file */
 
 #include <config.h>
@@ -140,35 +138,8 @@ static cfg_type_t cfg_type_view;
 static cfg_type_t cfg_type_viewopts;
 static cfg_type_t cfg_type_zone;
 static cfg_type_t cfg_type_zoneopts;
-static cfg_type_t cfg_type_dynamically_loadable_zones;
-static cfg_type_t cfg_type_dynamically_loadable_zones_opts;
 static cfg_type_t cfg_type_filter_aaaa;
-
-/*
- * Clauses that can be found in a 'dynamically loadable zones' statement
- */
-static cfg_clausedef_t
-dynamically_loadable_zones_clauses[] = {
-	{ "database", &cfg_type_astring, 0 },
-	{ "search", &cfg_type_boolean, 0 },
-	{ NULL, NULL, 0 }
-};
-
-/*
- * A dynamically loadable zones statement.
- */
-static cfg_tuplefielddef_t dynamically_loadable_zones_fields[] = {
-	{ "name", &cfg_type_astring, 0 },
-	{ "options", &cfg_type_dynamically_loadable_zones_opts, 0 },
-	{ NULL, NULL, 0 }
-};
-
-static cfg_type_t cfg_type_dynamically_loadable_zones = {
-	"dlz", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
-	&cfg_rep_tuple,
-	dynamically_loadable_zones_fields
-	};
-
+static cfg_type_t cfg_type_dlz;
 
 /*% tkey-dhkey */
 
@@ -934,7 +905,7 @@ static cfg_clausedef_t
 namedconf_or_view_clauses[] = {
 	{ "key", &cfg_type_key, CFG_CLAUSEFLAG_MULTI },
 	{ "zone", &cfg_type_zone, CFG_CLAUSEFLAG_MULTI },
-	{ "dlz", &cfg_type_dynamically_loadable_zones, CFG_CLAUSEFLAG_MULTI },
+	{ "dlz", &cfg_type_dlz, CFG_CLAUSEFLAG_MULTI },
 	{ "server", &cfg_type_server, CFG_CLAUSEFLAG_MULTI },
 	{ "trusted-keys", &cfg_type_dnsseckeys, CFG_CLAUSEFLAG_MULTI },
 	{ "managed-keys", &cfg_type_managedkeys, CFG_CLAUSEFLAG_MULTI },
@@ -1535,6 +1506,8 @@ view_clauses[] = {
 	{ "max-cache-ttl", &cfg_type_uint32, 0 },
 	{ "max-clients-per-query", &cfg_type_uint32, 0 },
 	{ "max-ncache-ttl", &cfg_type_uint32, 0 },
+	{ "max-recursion-depth", &cfg_type_uint32, 0 },
+	{ "max-recursion-queries", &cfg_type_uint32, 0 },
 	{ "max-udp-size", &cfg_type_uint32, 0 },
 	{ "min-roots", &cfg_type_uint32, CFG_CLAUSEFLAG_NOTIMP },
 	{ "minimal-responses", &cfg_type_boolean, 0 },
@@ -1552,7 +1525,6 @@ view_clauses[] = {
 	{ "queryport-pool-updateinterval", &cfg_type_uint32,
 	  CFG_CLAUSEFLAG_OBSOLETE },
 	{ "recursion", &cfg_type_boolean, 0 },
-	{ "request-ixfr", &cfg_type_boolean, 0 },
 #ifdef ISC_PLATFORM_USESIT
 	{ "request-sit", &cfg_type_boolean, 0 },
 #else
@@ -1643,6 +1615,7 @@ zone_clauses[] = {
 	{ "dnssec-update-mode", &cfg_type_dnssecupdatemode, 0 },
 	{ "forward", &cfg_type_forwardtype, 0 },
 	{ "forwarders", &cfg_type_portiplist, 0 },
+	{ "inline-signing", &cfg_type_boolean, 0 },
 	{ "key-directory", &cfg_type_qstring, 0 },
 	{ "maintain-ixfr-base", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "masterfile-format", &cfg_type_masterformat, 0 },
@@ -1664,13 +1637,12 @@ zone_clauses[] = {
 	{ "notify-source-v6", &cfg_type_sockaddr6wild, 0 },
 	{ "notify-to-soa", &cfg_type_boolean, 0 },
 	{ "nsec3-test-zone", &cfg_type_boolean, CFG_CLAUSEFLAG_TESTONLY },
-	{ "serial-update-method", &cfg_type_updatemethod, 0 },
 	{ "request-ixfr", &cfg_type_boolean, 0 },
+	{ "serial-update-method", &cfg_type_updatemethod, 0 },
 	{ "sig-signing-nodes", &cfg_type_uint32, 0 },
 	{ "sig-signing-signatures", &cfg_type_uint32, 0 },
 	{ "sig-signing-type", &cfg_type_uint32, 0 },
 	{ "sig-validity-interval", &cfg_type_validityinterval, 0 },
-	{ "inline-signing", &cfg_type_boolean, 0 },
 	{ "transfer-source", &cfg_type_sockaddr4wild, 0 },
 	{ "transfer-source-v6", &cfg_type_sockaddr6wild, 0 },
 	{ "try-tcp-refresh", &cfg_type_boolean, 0 },
@@ -1774,7 +1746,6 @@ view_clausesets[] = {
 	namedconf_or_view_clauses,
 	view_clauses,
 	zone_clauses,
-	dynamically_loadable_zones_clauses,
 	NULL
 };
 static cfg_type_t cfg_type_viewopts = {
@@ -1794,15 +1765,20 @@ static cfg_type_t cfg_type_zoneopts = {
 
 /*% The "dynamically loadable zones" statement syntax. */
 
+static cfg_clausedef_t
+dlz_clauses[] = {
+	{ "database", &cfg_type_astring, 0 },
+	{ "search", &cfg_type_boolean, 0 },
+	{ NULL, NULL, 0 }
+};
 static cfg_clausedef_t *
-dynamically_loadable_zones_clausesets[] = {
-	dynamically_loadable_zones_clauses,
+dlz_clausesets[] = {
+	dlz_clauses,
 	NULL
 };
-static cfg_type_t cfg_type_dynamically_loadable_zones_opts = {
-	"dynamically_loadable_zones_opts", cfg_parse_map,
-	cfg_print_map, cfg_doc_map, &cfg_rep_map,
-	dynamically_loadable_zones_clausesets
+static cfg_type_t cfg_type_dlz = {
+	"dlz", cfg_parse_named_map, cfg_print_map, cfg_doc_map,
+	 &cfg_rep_map, dlz_clausesets
 };
 
 /*%
@@ -1832,27 +1808,27 @@ static cfg_type_t cfg_type_key = {
 static cfg_clausedef_t
 server_clauses[] = {
 	{ "bogus", &cfg_type_boolean, 0 },
+	{ "edns", &cfg_type_boolean, 0 },
+	{ "edns-udp-size", &cfg_type_uint32, 0 },
+	{ "keys", &cfg_type_server_key_kludge, 0 },
+	{ "max-udp-size", &cfg_type_uint32, 0 },
+	{ "notify-source", &cfg_type_sockaddr4wild, 0 },
+	{ "notify-source-v6", &cfg_type_sockaddr6wild, 0 },
 	{ "provide-ixfr", &cfg_type_boolean, 0 },
+	{ "query-source", &cfg_type_querysource4, 0 },
+	{ "query-source-v6", &cfg_type_querysource6, 0 },
 	{ "request-ixfr", &cfg_type_boolean, 0 },
-	{ "support-ixfr", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
+	{ "request-nsid", &cfg_type_boolean, 0 },
 #ifdef ISC_PLATFORM_USESIT
 	{ "request-sit", &cfg_type_boolean, 0 },
 #else
 	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_NOTCONFIGURED },
 #endif
-	{ "request-nsid", &cfg_type_boolean, 0 },
-	{ "transfers", &cfg_type_uint32, 0 },
+	{ "support-ixfr", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "transfer-format", &cfg_type_transferformat, 0 },
-	{ "keys", &cfg_type_server_key_kludge, 0 },
-	{ "edns", &cfg_type_boolean, 0 },
-	{ "edns-udp-size", &cfg_type_uint32, 0 },
-	{ "max-udp-size", &cfg_type_uint32, 0 },
-	{ "notify-source", &cfg_type_sockaddr4wild, 0 },
-	{ "notify-source-v6", &cfg_type_sockaddr6wild, 0 },
-	{ "query-source", &cfg_type_querysource4, 0 },
-	{ "query-source-v6", &cfg_type_querysource6, 0 },
 	{ "transfer-source", &cfg_type_sockaddr4wild, 0 },
 	{ "transfer-source-v6", &cfg_type_sockaddr6wild, 0 },
+	{ "transfers", &cfg_type_uint32, 0 },
 	{ NULL, NULL, 0 }
 };
 static cfg_clausedef_t *

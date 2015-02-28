@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2012-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -326,6 +326,7 @@ initialize_ipv6only(void) {
 #endif /* WANT_IPV6 */
 
 #ifdef ISC_PLATFORM_HAVEIN6PKTINFO
+#ifdef WANT_IPV6
 static void
 try_ipv6pktinfo(void) {
 	int s, on;
@@ -377,6 +378,7 @@ initialize_ipv6pktinfo(void) {
 	RUNTIME_CHECK(isc_once_do(&once_ipv6pktinfo,
 				  try_ipv6pktinfo) == ISC_R_SUCCESS);
 }
+#endif /* WANT_IPV6 */
 #endif /* ISC_PLATFORM_HAVEIN6PKTINFO */
 #endif /* ISC_PLATFORM_HAVEIPV6 */
 
@@ -517,6 +519,8 @@ cmsgsend(int s, int level, int type, struct addrinfo *res) {
 		return (ISC_FALSE);
 	}
 
+	memset(&control, 0, sizeof(control));
+
 	iovec.iov_base = buf;
 	iovec.iov_len = sizeof(buf);
 
@@ -614,13 +618,17 @@ try_dscp_v4(void) {
 	int s, dscp = 0, n;
 #ifdef IP_RECVTOS
 	int on = 1;
-#endif
+#endif /* IP_RECVTOS */
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = IPPROTO_UDP;
+#ifdef AI_NUMERICHOST
 	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+#else
+	hints.ai_flags = AI_PASSIVE;
+#endif
 
 	n = getaddrinfo("127.0.0.1", NULL, &hints, &res0);
 	if (n != 0 || res0 == NULL) {
@@ -648,23 +656,29 @@ try_dscp_v4(void) {
 	on = 1;
 	if (setsockopt(s, IPPROTO_IP, IP_RECVTOS, &on, sizeof(on)) == 0)
 		dscp_result |= ISC_NET_DSCPRECVV4;
-#endif
+#endif /* IP_RECVTOS */
+
 #ifdef ISC_NET_BSD44MSGHDR
+
 #ifndef ISC_CMSG_IP_TOS
 #ifdef __APPLE__
 #define ISC_CMSG_IP_TOS 0	/* As of 10.8.2. */
-#else
+#else /* ! __APPLE__ */
 #define ISC_CMSG_IP_TOS 1
-#endif
-#endif
+#endif /* ! __APPLE__ */
+#endif /* ! ISC_CMSG_IP_TOS */
+
 #if ISC_CMSG_IP_TOS
 	if (cmsgsend(s, IPPROTO_IP, IP_TOS, res0))
 		dscp_result |= ISC_NET_DSCPPKTV4;
-#endif
-#endif
+#endif /* ISC_CMSG_IP_TOS */
+
+#endif /* ISC_NET_BSD44MSGHDR */
+
 	freeaddrinfo(res0);
 	close(s);
-#endif
+
+#endif /* IP_TOS */
 }
 
 static void
@@ -677,13 +691,17 @@ try_dscp_v6(void) {
 	int s, dscp = 0, n;
 #if defined(IPV6_RECVTCLASS)
 	int on = 1;
-#endif
+#endif /* IPV6_RECVTCLASS */
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET6;
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = IPPROTO_UDP;
+#ifdef AI_NUMERICHOST
 	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+#else
+	hints.ai_flags = AI_PASSIVE;
+#endif
 
 	n = getaddrinfo("::1", NULL, &hints, &res0);
 	if (n != 0 || res0 == NULL) {
@@ -709,16 +727,19 @@ try_dscp_v6(void) {
 	on = 1;
 	if (setsockopt(s, IPPROTO_IPV6, IPV6_RECVTCLASS, &on, sizeof(on)) == 0)
 		dscp_result |= ISC_NET_DSCPRECVV6;
-#endif
+#endif /* IPV6_RECVTCLASS */
+
 #ifdef ISC_NET_BSD44MSGHDR
 	if (cmsgsend(s, IPPROTO_IPV6, IPV6_TCLASS, res0))
 		dscp_result |= ISC_NET_DSCPPKTV6;
-#endif
+#endif /* ISC_NET_BSD44MSGHDR */
+
 	freeaddrinfo(res0);
 	close(s);
-#endif
-#endif
-#endif
+
+#endif /* IPV6_TCLASS */
+#endif /* WANT_IPV6 */
+#endif /* ISC_PLATFORM_HAVEIPV6 */
 }
 
 static void

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -391,14 +391,19 @@ sock_dump(isc_socket_t *sock) {
 
 #if 0
 	isc_sockaddr_t addr;
-	char socktext[256];
+	char socktext[ISC_SOCKADDR_FORMATSIZE];
+	isc_result_t result;
 
-	isc_socket_getpeername(sock, &addr);
-	isc_sockaddr_format(&addr, socktext, sizeof(socktext));
-	printf("Remote Socket: %s\n", socktext);
-	isc_socket_getsockname(sock, &addr);
-	isc_sockaddr_format(&addr, socktext, sizeof(socktext));
-	printf("This Socket: %s\n", socktext);
+	result = isc_socket_getpeername(sock, &addr);
+	if (result == ISC_R_SUCCESS) {
+		isc_sockaddr_format(&addr, socktext, sizeof(socktext));
+		printf("Remote Socket: %s\n", socktext);
+	}
+	result = isc_socket_getsockname(sock, &addr);
+	if (result == ISC_R_SUCCESS) {
+		isc_sockaddr_format(&addr, socktext, sizeof(socktext));
+		printf("This Socket: %s\n", socktext);
+	}
 #endif
 
 	printf("\n\t\tSock Dump\n");
@@ -922,7 +927,7 @@ connection_reset_fix(SOCKET fd) {
 	BOOL  bNewBehavior = FALSE;
 	DWORD status;
 
-	if (isc_win32os_majorversion() < 5)
+	if (isc_win32os_versioncheck(5, 0, 0, 0) < 0)
 		return (ISC_R_SUCCESS); /*  NT 4.0 has no problem */
 
 	/* disable bad behavior using IOCTL: SIO_UDP_CONNRESET */
@@ -1071,7 +1076,7 @@ destroy_socketevent(isc_event_t *event) {
 static isc_socketevent_t *
 allocate_socketevent(isc_mem_t *mctx, isc_socket_t *sock,
 		     isc_eventtype_t eventtype, isc_taskaction_t action,
-		     const void *arg)
+		     void *arg)
 {
 	isc_socketevent_t *ev;
 
@@ -1090,6 +1095,7 @@ allocate_socketevent(isc_mem_t *mctx, isc_socket_t *sock,
 	ev->attributes = 0;
 	ev->destroy = ev->ev_destroy;
 	ev->ev_destroy = destroy_socketevent;
+	ev->dscp = 0;
 
 	return (ev);
 }
@@ -1670,9 +1676,6 @@ socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 	REQUIRE(socketp != NULL && *socketp == NULL);
 	REQUIRE(type != isc_sockettype_fdwatch);
 
-	if (dup_socket != NULL)
-		return (ISC_R_NOTIMPLEMENTED);
-
 #ifndef SOCK_RAW
 	if (type == isc_sockettype_raw)
 		return (ISC_R_NOTIMPLEMENTED);
@@ -1683,55 +1686,40 @@ socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		return (result);
 
 	sock->pf = pf;
-#if 0
-	if (dup_socket == NULL) {
-#endif
-		switch (type) {
-		case isc_sockettype_udp:
-			sock->fd = socket(pf, SOCK_DGRAM, IPPROTO_UDP);
-			if (sock->fd != INVALID_SOCKET) {
-				result = connection_reset_fix(sock->fd);
-				if (result != ISC_R_SUCCESS) {
-					socket_log(__LINE__, sock,
-						NULL, EVENT, NULL, 0, 0,
-						"closed %d %d %d "
-						"con_reset_fix_failed",
-						sock->pending_recv,
-						sock->pending_send,
-						sock->references);
-					closesocket(sock->fd);
-					_set_state(sock, SOCK_CLOSED);
-					sock->fd = INVALID_SOCKET;
-					free_socket(&sock, __LINE__);
-					return (result);
-				}
+	switch (type) {
+	case isc_sockettype_udp:
+		sock->fd = socket(pf, SOCK_DGRAM, IPPROTO_UDP);
+		if (sock->fd != INVALID_SOCKET) {
+			result = connection_reset_fix(sock->fd);
+			if (result != ISC_R_SUCCESS) {
+				socket_log(__LINE__, sock,
+					NULL, EVENT, NULL, 0, 0,
+					"closed %d %d %d "
+					"con_reset_fix_failed",
+					sock->pending_recv,
+					sock->pending_send,
+					sock->references);
+				closesocket(sock->fd);
+				_set_state(sock, SOCK_CLOSED);
+				sock->fd = INVALID_SOCKET;
+				free_socket(&sock, __LINE__);
+				return (result);
 			}
-			break;
-		case isc_sockettype_tcp:
-			sock->fd = socket(pf, SOCK_STREAM, IPPROTO_TCP);
-			break;
-#ifdef SOCK_RAW
-		case isc_sockettype_raw:
-			sock->fd = socket(pf, SOCK_RAW, 0);
-#ifdef PF_ROUTE
-			if (pf == PF_ROUTE)
-				sock->bound = 1;
-#endif
-			break;
-#endif
 		}
-#if 0
-	} else {
-		/*
-		 * XXX: dup() is deprecated in windows, use _dup()
-		 * instead.  In future we may want to investigate
-		 * WSADuplicateSocket().
-		 */
-		sock->fd = _dup(dup_socket->fd);
-		sock->dupped = 1;
-		sock->bound = dup_socket->bound;
-	}
+		break;
+	case isc_sockettype_tcp:
+		sock->fd = socket(pf, SOCK_STREAM, IPPROTO_TCP);
+		break;
+#ifdef SOCK_RAW
+	case isc_sockettype_raw:
+		sock->fd = socket(pf, SOCK_RAW, 0);
+#ifdef PF_ROUTE
+		if (pf == PF_ROUTE)
+			sock->bound = 1;
 #endif
+		break;
+#endif
+	}
 
 	if (sock->fd == INVALID_SOCKET) {
 		socket_errno = WSAGetLastError();
@@ -1836,6 +1824,29 @@ socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 
 	iocompletionport_update(sock);
 
+	if (dup_socket) {
+#ifndef ISC_ALLOW_MAPPED
+		isc__socket_ipv6only(sock, ISC_TRUE);
+#endif
+
+		if (dup_socket->bound) {
+			isc_sockaddr_t local;
+
+			result = isc__socket_getsockname(dup_socket, &local);
+			if (result != ISC_R_SUCCESS) {
+				isc_socket_close(sock);
+				return (result);
+			}
+			result = isc__socket_bind(sock, &local,
+						  ISC_SOCKET_REUSEADDRESS);
+			if (result != ISC_R_SUCCESS) {
+				isc_socket_close(sock);
+				return (result);
+			}
+		}
+		sock->dupped = 1;
+	}
+
 	/*
 	 * Note we don't have to lock the socket like we normally would because
 	 * there are no external references to it yet.
@@ -1864,12 +1875,8 @@ isc__socket_dup(isc_socket_t *sock, isc_socket_t **socketp) {
 	REQUIRE(VALID_SOCKET(sock));
 	REQUIRE(socketp != NULL && *socketp == NULL);
 
-#if 1
-	return (ISC_R_NOTIMPLEMENTED);
-#else
 	return (socket_create(sock->manager, sock->pf, sock->type,
 			      socketp, sock));
-#endif
 }
 
 isc_result_t
@@ -2833,7 +2840,7 @@ socket_recv(isc_socket_t *sock, isc_socketevent_t *dev, isc_task_t *task,
 isc_result_t
 isc__socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
 		 unsigned int minimum, isc_task_t *task,
-		 isc_taskaction_t action, const void *arg)
+		 isc_taskaction_t action, void *arg)
 {
 	isc_socketevent_t *dev;
 	isc_socketmgr_t *manager;
@@ -2904,7 +2911,7 @@ isc__socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
 isc_result_t
 isc__socket_recv(isc_socket_t *sock, isc_region_t *region,
 		 unsigned int minimum, isc_task_t *task,
-		 isc_taskaction_t action, const void *arg)
+		 isc_taskaction_t action, void *arg)
 {
 	isc_socketevent_t *dev;
 	isc_socketmgr_t *manager;
@@ -3053,7 +3060,7 @@ socket_send(isc_socket_t *sock, isc_socketevent_t *dev, isc_task_t *task,
 
 isc_result_t
 isc__socket_send(isc_socket_t *sock, isc_region_t *region,
-		 isc_task_t *task, isc_taskaction_t action, const void *arg)
+		 isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	/*
 	 * REQUIRE() checking is performed in isc_socket_sendto().
@@ -3064,7 +3071,7 @@ isc__socket_send(isc_socket_t *sock, isc_region_t *region,
 
 isc_result_t
 isc__socket_sendto(isc_socket_t *sock, isc_region_t *region,
-		   isc_task_t *task, isc_taskaction_t action, const void *arg,
+		   isc_task_t *task, isc_taskaction_t action, void *arg,
 		   isc_sockaddr_t *address, struct in6_pktinfo *pktinfo)
 {
 	isc_socketevent_t *dev;
@@ -3108,7 +3115,7 @@ isc__socket_sendto(isc_socket_t *sock, isc_region_t *region,
 
 isc_result_t
 isc__socket_sendv(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		  isc_task_t *task, isc_taskaction_t action, const void *arg)
+		  isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	return (isc_socket_sendtov2(sock, buflist, task, action, arg, NULL,
 				    NULL, 0));
@@ -3116,7 +3123,7 @@ isc__socket_sendv(isc_socket_t *sock, isc_bufferlist_t *buflist,
 
 isc_result_t
 isc__socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		    isc_task_t *task, isc_taskaction_t action, const void *arg,
+		    isc_task_t *task, isc_taskaction_t action, void *arg,
 		    isc_sockaddr_t *address, struct in6_pktinfo *pktinfo)
 {
 	return (isc_socket_sendtov2(sock, buflist, task, action, arg, address,
@@ -3125,7 +3132,7 @@ isc__socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
 
 isc_result_t
 isc__socket_sendtov2(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		     isc_task_t *task, isc_taskaction_t action, const void *arg,
+		     isc_task_t *task, isc_taskaction_t action, void *arg,
 		     isc_sockaddr_t *address, struct in6_pktinfo *pktinfo,
 		     unsigned int flags)
 {
@@ -3348,7 +3355,7 @@ isc__socket_listen(isc_socket_t *sock, unsigned int backlog) {
  */
 isc_result_t
 isc__socket_accept(isc_socket_t *sock,
-		   isc_task_t *task, isc_taskaction_t action, const void *arg)
+		   isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	isc_socket_newconnev_t *adev;
 	isc_socketmgr_t *manager;
@@ -3466,7 +3473,7 @@ isc__socket_accept(isc_socket_t *sock,
 
 isc_result_t
 isc__socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
-		    isc_task_t *task, isc_taskaction_t action, const void *arg)
+		    isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	char strbuf[ISC_STRERRORSIZE];
 	isc_socket_connev_t *cdev;
@@ -3936,7 +3943,7 @@ isc___socketmgr_maxudp(isc_socketmgr_t *manager, int maxudp) {
 isc_socketevent_t *
 isc_socket_socketevent(isc_mem_t *mctx, void *sender,
 		       isc_eventtype_t eventtype, isc_taskaction_t action,
-		       const void *arg)
+		       void *arg)
 {
 	return (allocate_socketevent(mctx, sender, eventtype, action, arg));
 }

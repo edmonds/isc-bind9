@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2008-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006, 2008-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -253,11 +253,11 @@ dns_nsec3_hashname(dns_fixedname_t *result,
 	if (hash_length != NULL)
 		*hash_length = len;
 
-	/* convert the hash to base32hex */
+	/* convert the hash to base32hex non-padded */
 	region.base = rethash;
 	region.length = (unsigned int)len;
 	isc_buffer_init(&namebuffer, nametext, sizeof nametext);
-	isc_base32hex_totext(&region, 1, "", &namebuffer);
+	isc_base32hexnp_totext(&region, 1, "", &namebuffer);
 
 	/* convert the hex to a domain name */
 	dns_fixedname_init(result);
@@ -269,7 +269,8 @@ unsigned int
 dns_nsec3_hashlength(dns_hash_t hash) {
 
 	switch (hash) {
-	case dns_hash_sha1: return(ISC_SHA1_DIGESTLENGTH);
+	case dns_hash_sha1:
+		return(ISC_SHA1_DIGESTLENGTH);
 	}
 	return (0);
 }
@@ -277,7 +278,8 @@ dns_nsec3_hashlength(dns_hash_t hash) {
 isc_boolean_t
 dns_nsec3_supportedhash(dns_hash_t hash) {
 	switch (hash) {
-	case dns_hash_sha1: return (ISC_TRUE);
+	case dns_hash_sha1:
+		return (ISC_TRUE);
 	}
 	return (ISC_FALSE);
 }
@@ -565,6 +567,7 @@ dns_nsec3_addnsec3(dns_db_t *db, dns_dbversion_t *version,
 	CHECK(dns_nsec3_hashname(&fixed, nexthash, &next_length,
 				 name, origin, hash, iterations,
 				 salt, salt_length));
+	INSIST(next_length <= sizeof(nexthash));
 
 	/*
 	 * Create the node if it doesn't exist and hold
@@ -842,8 +845,8 @@ dns_nsec3_addnsec3(dns_db_t *db, dns_dbversion_t *version,
 		dns_db_detachnode(db, &newnode);
 	} while (1);
 
-	if (result == ISC_R_NOMORE)
-		result = ISC_R_SUCCESS;
+	/* result cannot be ISC_R_NOMORE here */
+	INSIST(result != ISC_R_NOMORE);
 
  failure:
 	if (dbit != NULL)
@@ -2050,8 +2053,6 @@ dns_nsec3_noexistnodata(dns_rdatatype_t type, dns_name_t* name,
 		    (scope >= 0 && (order > 0 ||
 				    memcmp(hash, nsec3.next, length) < 0)))
 		{
-			char namebuf[DNS_NAME_FORMATSIZE];
-
 			dns_name_format(qname, namebuf, sizeof(namebuf));
 			(*logit)(arg, ISC_LOG_DEBUG(3), "NSEC3 proves "
 				 "name does not exist: '%s'", namebuf);
@@ -2068,6 +2069,9 @@ dns_nsec3_noexistnodata(dns_rdatatype_t type, dns_name_t* name,
 				if ((nsec3.flags & DNS_NSEC3FLAG_OPTOUT) != 0)
 					(*logit)(arg, ISC_LOG_DEBUG(3),
 						 "NSEC3 indicates optout");
+				else
+					(*logit)(arg, ISC_LOG_DEBUG(3),
+						 "NSEC3 indicates secure range");
 				*optout =
 				    ISC_TF(nsec3.flags & DNS_NSEC3FLAG_OPTOUT);
 			}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: dnssectool.c,v 1.63 2011/10/21 03:55:33 marka Exp $ */
 
 /*! \file */
 
@@ -122,6 +120,12 @@ vbprintf(int level, const char *fmt, ...) {
 }
 
 void
+version(const char *name) {
+	fprintf(stderr, "%s %s\n", name, VERSION);
+	exit(0);
+}
+
+void
 type_format(const dns_rdatatype_t type, char *cp, unsigned int size) {
 	isc_buffer_t b;
 	isc_region_t r;
@@ -145,7 +149,7 @@ sig_format(dns_rdata_rrsig_t *sig, char *cp, unsigned int size) {
 }
 
 void
-setup_logging(int verbose, isc_mem_t *mctx, isc_log_t **logp) {
+setup_logging(isc_mem_t *mctx, isc_log_t **logp) {
 	isc_result_t result;
 	isc_logdestination_t destination;
 	isc_logconfig_t *logconfig = NULL;

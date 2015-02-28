@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,8 +13,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: dnssec-dsfromkey.c,v 1.24.114.1 2012/02/07 00:44:12 each Exp $ */
 
 /*! \file */
 
@@ -67,6 +65,7 @@ static dns_fixedname_t	fixed;
 static dns_name_t	*name = NULL;
 static isc_mem_t	*mctx = NULL;
 static isc_uint32_t	ttl;
+static isc_boolean_t	emitttl = ISC_FALSE;
 
 static isc_result_t
 initname(char *setname) {
@@ -301,7 +300,7 @@ emit(unsigned int dtype, isc_boolean_t showall, char *lookaside,
 	isc_buffer_usedregion(&nameb, &r);
 	printf("%.*s ", (int)r.length, r.base);
 
-	if (ttl != 0U)
+	if (emitttl)
 		printf("%u ", ttl);
 
 	isc_buffer_usedregion(&classb, &r);
@@ -330,6 +329,7 @@ usage(void) {
 	fprintf(stderr, "Version: %s\n", VERSION);
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "    -v <verbose level>\n");
+	fprintf(stderr, "    -V: print version information\n");
 	fprintf(stderr, "    -K <directory>: directory in which to find "
 			"key file or keyset file\n");
 	fprintf(stderr, "    -a algorithm: digest algorithm "
@@ -382,7 +382,7 @@ main(int argc, char **argv) {
 	isc_commandline_errprint = ISC_FALSE;
 
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "12Aa:c:d:Ff:K:l:sT:v:h")) != -1) {
+					   "12Aa:c:d:Ff:K:l:sT:v:hV")) != -1) {
 		switch (ch) {
 		case '1':
 			dtype = DNS_DSDIGEST_SHA1;
@@ -423,6 +423,7 @@ main(int argc, char **argv) {
 			usekeyset = ISC_TRUE;
 			break;
 		case 'T':
+			emitttl = ISC_TRUE;
 			ttl = atol(isc_commandline_argument);
 			break;
 		case 'v':
@@ -439,7 +440,12 @@ main(int argc, char **argv) {
 					program, isc_commandline_option);
 			/* FALLTHROUGH */
 		case 'h':
+			/* Does not return. */
 			usage();
+
+		case 'V':
+			/* Does not return. */
+			version(program);
 
 		default:
 			fprintf(stderr, "%s: unhandled option -%c\n",
@@ -492,7 +498,7 @@ main(int argc, char **argv) {
 		      isc_result_totext(result));
 	isc_entropy_stopcallbacksources(ectx);
 
-	setup_logging(verbose, mctx, &log);
+	setup_logging(mctx, &log);
 
 	dns_rdataset_init(&rdataset);
 

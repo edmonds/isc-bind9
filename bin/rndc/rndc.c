@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -79,7 +79,7 @@ static isc_uint32_t algorithm;
 static isccc_region_t secret;
 static isc_boolean_t failed = ISC_FALSE;
 static isc_boolean_t c_flag = ISC_FALSE;
-static isc_mem_t *mctx;
+static isc_mem_t *rndc_mctx;
 static int sends, recvs, connects;
 static char *command;
 static char *args;
@@ -101,85 +101,83 @@ Usage: %s [-b address] [-c config] [-s server] [-p port]\n\
 \n\
 command is one of the following:\n\
 \n\
-  reload	Reload configuration file and zones.\n\
-  reload zone [class [view]]\n\
-		Reload a single zone.\n\
-  refresh zone [class [view]]\n\
-		Schedule immediate maintenance for a zone.\n\
-  retransfer zone [class [view]]\n\
-		Retransfer a single zone without checking serial number.\n\
-  freeze	Suspend updates to all dynamic zones.\n\
-  freeze zone [class [view]]\n\
-		Suspend updates to a dynamic zone.\n\
-  thaw		Enable updates to all dynamic zones and reload them.\n\
-  thaw zone [class [view]]\n\
-		Enable updates to a frozen dynamic zone and reload it.\n\
-  sync [-clean]	Dump changes to all dynamic zones to disk, and optionally\n\
-		remove their journal files.\n\
-  sync [-clean] zone [class [view]]\n\
-		Dump a single zone's changes to disk, and optionally\n\
-		remove its journal file.\n\
-  notify zone [class [view]]\n\
-		Resend NOTIFY messages for the zone.\n\
-  reconfig	Reload configuration file and new zones only.\n\
-  sign zone [class [view]]\n\
-		Update zone keys, and sign as needed.\n\
-  loadkeys zone [class [view]]\n\
-		Update keys without signing immediately.\n\
-  zonestatus zone [class [view]]\n\
-		Display the current status of a zone.\n\
-  stats		Write server statistics to the statistics file.\n\
-  querylog newstate\n\
-		Enable / disable query logging.\n\
+  addzone zone [class [view]] { zone-options }\n\
+		Add zone to given view. Requires new-zone-file option.\n\
+  delzone [-clean] zone [class [view]]\n\
+		Removes zone from given view. Requires new-zone-file option.\n\
   dumpdb [-all|-cache|-zones] [view ...]\n\
 		Dump cache(s) to the dump file (named_dump.db).\n\
-  secroots [view ...]\n\
-		Write security roots to the secroots file.\n\
-  stop		Save pending updates to master files and stop the server.\n\
-  stop -p	Save pending updates to master files and stop the server\n\
-		reporting process id.\n\
-  halt		Stop the server without saving pending updates.\n\
-  halt -p	Stop the server without saving pending updates reporting\n\
-		process id.\n\
-  trace		Increment debugging level by one.\n\
-  trace level	Change the debugging level.\n\
-  notrace	Set debugging level to 0.\n\
   flush 	Flushes all of the server's caches.\n\
   flush [view]	Flushes the server's cache for a view.\n\
   flushname name [view]\n\
 		Flush the given name from the server's cache(s)\n\
   flushtree name [view]\n\
 		Flush all names under the given name from the server's cache(s)\n\
-  status	Display status of the server.\n\
+  freeze	Suspend updates to all dynamic zones.\n\
+  freeze zone [class [view]]\n\
+		Suspend updates to a dynamic zone.\n\
+  halt		Stop the server without saving pending updates.\n\
+  halt -p	Stop the server without saving pending updates reporting\n\
+		process id.\n\
+  loadkeys zone [class [view]]\n\
+		Update keys without signing immediately.\n\
+  notify zone [class [view]]\n\
+		Resend NOTIFY messages for the zone.\n\
+  notrace	Set debugging level to 0.\n\
+  querylog newstate\n\
+		Enable / disable query logging.\n\
+  reconfig	Reload configuration file and new zones only.\n\
   recursing	Dump the queries that are currently recursing (named.recursing)\n\
-  tsig-list	List all currently active TSIG keys, including both statically\n\
-		configured and TKEY-negotiated keys.\n\
-  tsig-delete keyname [view]	\n\
-		Delete a TKEY-negotiated TSIG key.\n\
-  validation newstate [view]\n\
-		Enable / disable DNSSEC validation.\n\
-  addzone zone [class [view]] { zone-options }\n\
-		Add zone to given view. Requires new-zone-file option.\n\
-  delzone [-clean] zone [class [view]]\n\
-		Removes zone from given view. Requires new-zone-file option.\n\
+  refresh zone [class [view]]\n\
+		Schedule immediate maintenance for a zone.\n\
+  reload	Reload configuration file and zones.\n\
+  reload zone [class [view]]\n\
+		Reload a single zone.\n\
+  retransfer zone [class [view]]\n\
+		Retransfer a single zone without checking serial number.\n\
   scan		Scan available network interfaces for changes.\n\
-  signing -list zone [class [view]]\n\
-		List the private records showing the state of DNSSEC\n\
-		signing in the given zone.\n\
-  signing -clear <keyid>/<algorithm> zone [class [view]]\n\
-		Remove the private record that indicating the given key\n\
-		has finished signing the given zone.\n\
+  secroots [view ...]\n\
+		Write security roots to the secroots file.\n\
+  sign zone [class [view]]\n\
+		Update zone keys, and sign as needed.\n\
   signing -clear all zone [class [view]]\n\
 		Remove the private records for all keys that have\n\
 		finished signing the given zone.\n\
-  signing -nsec3param none zone [class [view]]\n\
-		Remove NSEC3 chains from zone.\n\
+  signing -clear <keyid>/<algorithm> zone [class [view]]\n\
+		Remove the private record that indicating the given key\n\
+		has finished signing the given zone.\n\
+  signing -list zone [class [view]]\n\
+		List the private records showing the state of DNSSEC\n\
+		signing in the given zone.\n\
   signing -nsec3param hash flags iterations salt zone [class [view]]\n\
 		Add NSEC3 chain to zone if already signed.\n\
 		Prime zone with NSEC3 chain if not yet signed.\n\
-  *restart	Restart the server.\n\
+  signing -nsec3param none zone [class [view]]\n\
+		Remove NSEC3 chains from zone.\n\
+  stats		Write server statistics to the statistics file.\n\
+  status	Display status of the server.\n\
+  stop		Save pending updates to master files and stop the server.\n\
+  stop -p	Save pending updates to master files and stop the server\n\
+		reporting process id.\n\
+  sync [-clean]	Dump changes to all dynamic zones to disk, and optionally\n\
+		remove their journal files.\n\
+  sync [-clean] zone [class [view]]\n\
+		Dump a single zone's changes to disk, and optionally\n\
+		remove its journal file.\n\
+  thaw		Enable updates to all dynamic zones and reload them.\n\
+  thaw zone [class [view]]\n\
+		Enable updates to a frozen dynamic zone and reload it.\n\
+  trace		Increment debugging level by one.\n\
+  trace level	Change the debugging level.\n\
+  tsig-delete keyname [view]\n\
+		Delete a TKEY-negotiated TSIG key.\n\
+  tsig-list	List all currently active TSIG keys, including both statically\n\
+		configured and TKEY-negotiated keys.\n\
+  validation newstate [view]\n\
+		Enable / disable DNSSEC validation.\n\
+  zonestatus zone [class [view]]\n\
+		Display the current status of a zone.\n\
 \n\
-* == not yet implemented\n\
 Version: %s\n",
 		progname, version);
 
@@ -417,7 +415,7 @@ rndc_connected(isc_task_t *task, isc_event_t *event) {
 	r.length = len;
 	r.base = databuf;
 
-	isccc_ccmsg_init(mctx, sock, &ccmsg);
+	isccc_ccmsg_init(rndc_mctx, sock, &ccmsg);
 	isccc_ccmsg_setmaxsize(&ccmsg, 1024 * 1024);
 
 	DO("schedule recv", isccc_ccmsg_readmessage(&ccmsg, task,
@@ -840,12 +838,12 @@ main(int argc, char **argv) {
 
 	isc_random_get(&serial);
 
-	DO("create memory context", isc_mem_create(0, 0, &mctx));
-	DO("create socket manager", isc_socketmgr_create(mctx, &socketmgr));
-	DO("create task manager", isc_taskmgr_create(mctx, 1, 0, &taskmgr));
+	DO("create memory context", isc_mem_create(0, 0, &rndc_mctx));
+	DO("create socket manager", isc_socketmgr_create(rndc_mctx, &socketmgr));
+	DO("create task manager", isc_taskmgr_create(rndc_mctx, 1, 0, &taskmgr));
 	DO("create task", isc_task_create(taskmgr, 0, &task));
 
-	DO("create logging context", isc_log_create(mctx, &log, &logconfig));
+	DO("create logging context", isc_log_create(rndc_mctx, &log, &logconfig));
 	isc_log_setcontext(log);
 	DO("setting log tag", isc_log_settag(logconfig, progname));
 	logdest.file.stream = stderr;
@@ -859,7 +857,7 @@ main(int argc, char **argv) {
 	DO("enabling log channel", isc_log_usechannel(logconfig, "stderr",
 						      NULL, NULL));
 
-	parse_config(mctx, log, keyname, &pctx, &config);
+	parse_config(rndc_mctx, log, keyname, &pctx, &config);
 
 	isccc_result_register();
 
@@ -874,7 +872,7 @@ main(int argc, char **argv) {
 	for (i = 0; i < argc; i++)
 		argslen += strlen(argv[i]) + 1;
 
-	args = isc_mem_get(mctx, argslen);
+	args = isc_mem_get(rndc_mctx, argslen);
 	if (args == NULL)
 		DO("isc_mem_get", ISC_R_NOMEMORY);
 
@@ -898,7 +896,7 @@ main(int argc, char **argv) {
 	if (nserveraddrs == 0)
 		get_addresses(servername, (in_port_t) remoteport);
 
-	DO("post event", isc_app_onrun(mctx, task, rndc_start, NULL));
+	DO("post event", isc_app_onrun(rndc_mctx, task, rndc_start, NULL));
 
 	result = isc_app_run();
 	if (result != ISC_R_SUCCESS)
@@ -916,15 +914,15 @@ main(int argc, char **argv) {
 	cfg_obj_destroy(pctx, &config);
 	cfg_parser_destroy(&pctx);
 
-	isc_mem_put(mctx, args, argslen);
+	isc_mem_put(rndc_mctx, args, argslen);
 	isccc_ccmsg_invalidate(&ccmsg);
 
 	dns_name_destroy();
 
 	if (show_final_mem)
-		isc_mem_stats(mctx, stderr);
+		isc_mem_stats(rndc_mctx, stderr);
 
-	isc_mem_destroy(&mctx);
+	isc_mem_destroy(&rndc_mctx);
 
 	if (failed)
 		return (1);

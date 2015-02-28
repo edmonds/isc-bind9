@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -140,7 +140,7 @@ route_event(isc_task_t *task, isc_event_t *event) {
 	switch (rtm->MSGTYPE) {
 	case RTM_NEWADDR:
 	case RTM_DELADDR:
-		if (ns_g_server->interface_auto)
+		if (mgr->route != NULL && ns_g_server->interface_auto)
 			ns_server_scan_interfaces(ns_g_server);
 		break;
 	default:
@@ -172,10 +172,14 @@ isc_result_t
 ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		       isc_socketmgr_t *socketmgr,
 		       dns_dispatchmgr_t *dispatchmgr,
-		       ns_interfacemgr_t **mgrp)
+		       isc_task_t *task, ns_interfacemgr_t **mgrp)
 {
 	isc_result_t result;
 	ns_interfacemgr_t *mgr;
+
+#ifndef USE_ROUTE_SOCKET
+	UNUSED(task);
+#endif
 
 	REQUIRE(mctx != NULL);
 	REQUIRE(mgrp != NULL);
@@ -232,11 +236,8 @@ ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	}
 
 	mgr->task = NULL;
-	if (mgr->route != NULL) {
-		result = isc_task_create(taskmgr, 0, &mgr->task);
-		if (result != ISC_R_SUCCESS)
-			goto cleanup_route;
-	}
+	if (mgr->route != NULL)
+		isc_task_attach(task, &mgr->task);
 	mgr->references = (mgr->route != NULL) ? 2 : 1;
 #else
 	mgr->references = 1;
@@ -260,9 +261,6 @@ ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	return (ISC_R_SUCCESS);
 
 #ifdef USE_ROUTE_SOCKET
- cleanup_route:
-	if (mgr->route != NULL)
-		isc_socket_detach(&mgr->route);
  cleanup_aclenv:
 	dns_aclenv_destroy(&mgr->aclenv);
 #endif
@@ -569,7 +567,7 @@ ns_interface_setup(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_interface;
 
-	if (accept_tcp == ISC_TRUE) {
+	if (!ns_g_notcp && accept_tcp == ISC_TRUE) {
 		result = ns_interface_accepttcp(ifp);
 		if (result != ISC_R_SUCCESS) {
 			/*
@@ -816,7 +814,7 @@ do_scan(ns_interfacemgr_t *mgr, ns_listenlist_t *ext_listen,
 	if (isc_net_probeipv6() == ISC_R_SUCCESS)
 		scan_ipv6 = ISC_TRUE;
 #ifdef WANT_IPV6
-	else
+	else if (!ns_g_disable6)
 		isc_log_write(IFMGR_COMMON_LOGARGS,
 			      verbose ? ISC_LOG_INFO : ISC_LOG_DEBUG(1),
 			      "no IPv6 interfaces found");
@@ -824,7 +822,7 @@ do_scan(ns_interfacemgr_t *mgr, ns_listenlist_t *ext_listen,
 
 	if (isc_net_probeipv4() == ISC_R_SUCCESS)
 		scan_ipv4 = ISC_TRUE;
-	else
+	else if (!ns_g_disable4)
 		isc_log_write(IFMGR_COMMON_LOGARGS,
 			      verbose ? ISC_LOG_INFO : ISC_LOG_DEBUG(1),
 			      "no IPv4 interfaces found");
@@ -1041,7 +1039,7 @@ do_scan(ns_interfacemgr_t *mgr, ns_listenlist_t *ext_listen,
 				if (le->dscp != -1 && ifp->dscp == -1)
 					ifp->dscp = le->dscp;
 				else if (le->dscp != ifp->dscp) {
-					isc_sockaddr_format(&listen_addr,
+					isc_sockaddr_format(&listen_sockaddr,
 							    sabuf,
 							    sizeof(sabuf));
 					isc_log_write(IFMGR_COMMON_LOGARGS,
