@@ -4,6 +4,11 @@ package.
 
 Upstream releases from ISC are kept on the "upstream" branch (with pristine-tar
 deltas on the "pristine-tar" branch). Debian packaging is kept on the "debian"
-branch.
+branch. Upstream git history is imported via a remote tracking branch:
+
+  $ git remote add --tags -t master -t v9_10 upstream https://source.isc.org/git/bind9.git
+
+New upstream releases are imported with gbp import-orig's "--upstream-vcs-tag"
+option.
 
 No changes to the original source code as shipped by ISC are performed.
