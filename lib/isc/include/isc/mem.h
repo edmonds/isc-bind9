@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,6 +14,8 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
+/* $Id$ */
 
 #ifndef ISC_MEM_H
 #define ISC_MEM_H 1
@@ -74,8 +76,6 @@ typedef void (*isc_memfree_t)(void *, void *);
 #endif
 
 LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_debugging;
-LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_defaultflags;
-
 /*@{*/
 #define ISC_MEM_DEBUGTRACE		0x00000001U
 #define ISC_MEM_DEBUGRECORD		0x00000002U

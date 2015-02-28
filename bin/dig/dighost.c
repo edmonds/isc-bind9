@@ -3924,14 +3924,10 @@ isc_result_t
 get_address(char *host, in_port_t myport, isc_sockaddr_t *sockaddr) {
 	int count;
 	isc_result_t result;
-	isc_boolean_t is_running;
 
-	is_running = isc_app_isrunning();
-	if (is_running)
-		isc_app_block();
+	isc_app_block();
 	result = bind9_getaddresses(host, myport, sockaddr, 1, &count);
-	if (is_running)
-		isc_app_unblock();
+	isc_app_unblock();
 	if (result != ISC_R_SUCCESS)
 		return (result);
 

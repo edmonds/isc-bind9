@@ -699,8 +699,9 @@ struct dns_include {
  * RFC 5011.
  */
 unsigned int dns_zone_mkey_hour = HOUR;
-unsigned int dns_zone_mkey_day = DAY;
-unsigned int dns_zone_mkey_month = MONTH;
+unsigned int dns_zone_mkey_day = (24 * HOUR);
+unsigned int dns_zone_mkey_month = (30 * DAY);
+
 
 #define SEND_BUFFER_SIZE 2048
 
@@ -1723,7 +1724,7 @@ zone_touched(dns_zone_t *zone) {
 }
 
 static isc_result_t
-zone_load(dns_zone_t *zone, unsigned int flags, isc_boolean_t locked) {
+zone_load(dns_zone_t *zone, unsigned int flags) {
 	isc_result_t result;
 	isc_time_t now;
 	isc_time_t loadtime;
@@ -1732,16 +1733,13 @@ zone_load(dns_zone_t *zone, unsigned int flags, isc_boolean_t locked) {
 
 	REQUIRE(DNS_ZONE_VALID(zone));
 
-	if (!locked)
-		LOCK_ZONE(zone);
-
+	LOCK_ZONE(zone);
 	INSIST(zone != zone->raw);
 	hasraw = inline_secure(zone);
 	if (hasraw) {
-		result = zone_load(zone->raw, flags, ISC_FALSE);
+		result = zone_load(zone->raw, flags);
 		if (result != ISC_R_SUCCESS) {
-			if (!locked)
-				UNLOCK_ZONE(zone);
+			UNLOCK_ZONE(zone);
 			return(result);
 		}
 		LOCK_ZONE(zone->raw);
@@ -1950,8 +1948,7 @@ zone_load(dns_zone_t *zone, unsigned int flags, isc_boolean_t locked) {
  cleanup:
 	if (hasraw)
 		UNLOCK_ZONE(zone->raw);
-	if (!locked)
-		UNLOCK_ZONE(zone);
+	UNLOCK_ZONE(zone);
 	if (db != NULL)
 		dns_db_detach(&db);
 	return (result);
@@ -1959,12 +1956,12 @@ zone_load(dns_zone_t *zone, unsigned int flags, isc_boolean_t locked) {
 
 isc_result_t
 dns_zone_load(dns_zone_t *zone) {
-	return (zone_load(zone, 0, ISC_FALSE));
+	return (zone_load(zone, 0));
 }
 
 isc_result_t
 dns_zone_loadnew(dns_zone_t *zone) {
-	return (zone_load(zone, DNS_ZONELOADFLAG_NOSTAT, ISC_FALSE));
+	return (zone_load(zone, DNS_ZONELOADFLAG_NOSTAT));
 }
 
 static void
@@ -1972,7 +1969,6 @@ zone_asyncload(isc_task_t *task, isc_event_t *event) {
 	dns_asyncload_t *asl = event->ev_arg;
 	dns_zone_t *zone = asl->zone;
 	isc_result_t result = ISC_R_SUCCESS;
-	isc_boolean_t load_pending;
 
 	UNUSED(task);
 
@@ -1981,21 +1977,13 @@ zone_asyncload(isc_task_t *task, isc_event_t *event) {
 	if ((event->ev_attributes & ISC_EVENTATTR_CANCELED) != 0)
 		result = ISC_R_CANCELED;
 	isc_event_free(&event);
-
-	if (result == ISC_R_CANCELED)
+	if (result == ISC_R_CANCELED ||
+	    !DNS_ZONE_FLAG(zone, DNS_ZONEFLG_LOADPENDING))
 		goto cleanup;
 
-	/* Make sure load is still pending */
+	zone_load(zone, 0);
+
 	LOCK_ZONE(zone);
-	load_pending = ISC_TF(DNS_ZONE_FLAG(zone, DNS_ZONEFLG_LOADPENDING));
-
-	if (!load_pending) {
-		UNLOCK_ZONE(zone);
-		goto cleanup;
-	}
-
-	zone_load(zone, 0, ISC_TRUE);
-
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_LOADPENDING);
 	UNLOCK_ZONE(zone);
 
@@ -2021,7 +2009,7 @@ dns_zone_asyncload(dns_zone_t *zone, dns_zt_zoneloaded_t done, void *arg) {
 
 	/* If we already have a load pending, stop now */
 	if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_LOADPENDING))
-		return (ISC_R_ALREADYRUNNING);
+		done(arg, zone, NULL);
 
 	asl = isc_mem_get(zone->mctx, sizeof (*asl));
 	if (asl == NULL)
@@ -2064,10 +2052,9 @@ dns_zone_loadandthaw(dns_zone_t *zone) {
 	isc_result_t result;
 
 	if (inline_raw(zone))
-		result = zone_load(zone->secure, DNS_ZONELOADFLAG_THAW,
-				   ISC_FALSE);
+		result = zone_load(zone->secure, DNS_ZONELOADFLAG_THAW);
 	else
-		result = zone_load(zone, DNS_ZONELOADFLAG_THAW, ISC_FALSE);
+		result = zone_load(zone, DNS_ZONELOADFLAG_THAW);
 
 	switch (result) {
 	case DNS_R_CONTINUE:
@@ -17562,7 +17549,7 @@ keydone(isc_task_t *task, isc_event_t *event) {
 	dns_dbnode_t *node = NULL;
 	dns_rdataset_t rdataset;
 	dns_diff_t diff;
-	struct keydone *kd = (struct keydone *)event;
+	struct keydone *keydone = (struct keydone *)event;
 	dns_update_log_t log = { update_log_cb, NULL };
 	isc_boolean_t clear_pending = ISC_FALSE;
 
@@ -17614,7 +17601,7 @@ keydone(isc_task_t *task, isc_event_t *event) {
 
 		dns_rdataset_current(&rdataset, &rdata);
 
-		if (kd->all) {
+		if (keydone->all) {
 			if (rdata.length == 5 && rdata.data[0] != 0 &&
 			       rdata.data[3] == 0 && rdata.data[4] == 1)
 				found = ISC_TRUE;
@@ -17624,7 +17611,7 @@ keydone(isc_task_t *task, isc_event_t *event) {
 				clear_pending = ISC_TRUE;
 			}
 		} else if (rdata.length == 5 &&
-			   memcmp(rdata.data, kd->data, 5) == 0)
+			   memcmp(rdata.data, keydone->data, 5) == 0)
 			found = ISC_TRUE;
 
 		if (found)

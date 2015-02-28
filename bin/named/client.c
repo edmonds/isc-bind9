@@ -342,12 +342,12 @@ exit_check(ns_client_t *client) {
 		 * We are trying to abort request processing.
 		 */
 		if (client->nsends > 0) {
-			isc_socket_t *sock;
+			isc_socket_t *socket;
 			if (TCP_CLIENT(client))
-				sock = client->tcpsocket;
+				socket = client->tcpsocket;
 			else
-				sock = client->udpsocket;
-			isc_socket_cancel(sock, client->task,
+				socket = client->udpsocket;
+			isc_socket_cancel(socket, client->task,
 					  ISC_SOCKCANCEL_SEND);
 		}
 
@@ -861,17 +861,17 @@ client_sendpkg(ns_client_t *client, isc_buffer_t *buffer) {
 	isc_result_t result;
 	isc_region_t r;
 	isc_sockaddr_t *address;
-	isc_socket_t *sock;
+	isc_socket_t *socket;
 	isc_netaddr_t netaddr;
 	int match;
 	unsigned int sockflags = ISC_SOCKFLAG_IMMEDIATE;
 	isc_dscp_t dispdscp = -1;
 
 	if (TCP_CLIENT(client)) {
-		sock = client->tcpsocket;
+		socket = client->tcpsocket;
 		address = NULL;
 	} else {
-		sock = client->udpsocket;
+		socket = client->udpsocket;
 		address = &client->peeraddr;
 
 		isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
@@ -909,7 +909,7 @@ client_sendpkg(ns_client_t *client, isc_buffer_t *buffer) {
 
 	CTRACE("sendto");
 
-	result = isc_socket_sendto2(sock, &r, client->task,
+	result = isc_socket_sendto2(socket, &r, client->task,
 				    address, pktinfo,
 				    client->sendevent, sockflags);
 	if (result == ISC_R_SUCCESS || result == ISC_R_INPROGRESS) {
@@ -1293,15 +1293,10 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 		isc_boolean_t wouldlog;
 		char log_buf[DNS_RRL_LOG_BUF_LEN];
 		dns_rrl_result_t rrl_result;
-		int loglevel;
 
 		INSIST(rcode != dns_rcode_noerror &&
 		       rcode != dns_rcode_nxdomain);
-		if (ns_g_server->log_queries)
-			loglevel = DNS_RRL_LOG_DROP;
-		else
-			loglevel = ISC_LOG_DEBUG(1);
-		wouldlog = isc_log_wouldlog(ns_g_lctx, loglevel);
+		wouldlog = isc_log_wouldlog(ns_g_lctx, DNS_RRL_LOG_DROP);
 		rrl_result = dns_rrl(client->view, &client->peeraddr,
 				     TCP_CLIENT(client),
 				     dns_rdataclass_in, dns_rdatatype_none,
@@ -1318,7 +1313,7 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 				ns_client_log(client,
 					      NS_LOGCATEGORY_QUERY_EERRORS,
 					      NS_LOGMODULE_CLIENT,
-					      loglevel,
+					      DNS_RRL_LOG_DROP,
 					      "%s", log_buf);
 			}
 			/*

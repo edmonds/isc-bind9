@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -372,7 +372,7 @@ gssapi_spnego_decapsulate(OM_uint32 *,
 /* mod_auth_kerb.c */
 
 static int
-cmp_gss_type(gss_buffer_t token, gss_OID gssoid)
+cmp_gss_type(gss_buffer_t token, gss_OID oid)
 {
 	unsigned char *p;
 	size_t len;
@@ -392,10 +392,10 @@ cmp_gss_type(gss_buffer_t token, gss_OID gssoid)
 	if (*p++ != 0x06)
 		return (GSS_S_DEFECTIVE_TOKEN);
 
-	if (((OM_uint32) *p++) != gssoid->length)
+	if (((OM_uint32) *p++) != oid->length)
 		return (GSS_S_DEFECTIVE_TOKEN);
 
-	return (memcmp(p, gssoid->elements, gssoid->length));
+	return (memcmp(p, oid->elements, oid->length));
 }
 
 /* accept_sec_context.c */

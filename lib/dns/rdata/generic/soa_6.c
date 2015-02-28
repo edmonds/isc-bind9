@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2009, 2011, 2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2011, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -95,16 +95,16 @@ totext_soa(ARGS_TOTEXT) {
 	isc_boolean_t sub;
 	int i;
 	isc_boolean_t multiline;
-	isc_boolean_t comm;
+	isc_boolean_t comment;
 
 	REQUIRE(rdata->type == 6);
 	REQUIRE(rdata->length != 0);
 
 	multiline = ISC_TF((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0);
 	if (multiline)
-		comm = ISC_TF((tctx->flags & DNS_STYLEFLAG_RRCOMMENT) != 0);
+		comment = ISC_TF((tctx->flags & DNS_STYLEFLAG_RRCOMMENT) != 0);
 	else
-		comm = ISC_FALSE;
+		comment = ISC_FALSE;
 
 
 	dns_name_init(&mname, NULL);
@@ -136,9 +136,9 @@ totext_soa(ARGS_TOTEXT) {
 		unsigned long num;
 		num = uint32_fromregion(&dregion);
 		isc_region_consume(&dregion, 4);
-		sprintf(buf, comm ? "%-10lu ; " : "%lu", num);
+		sprintf(buf, comment ? "%-10lu ; " : "%lu", num);
 		RETERR(str_totext(buf, target));
-		if (comm) {
+		if (comment) {
 			RETERR(str_totext(soa_fieldnames[i], target));
 			/* Print times in week/day/hour/minute/second form */
 			if (i >= 1) {

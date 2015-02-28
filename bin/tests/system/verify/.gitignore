@@ -1,7 +1,0 @@
-random.data
-verify.out.*
-zones/*.good
-zones/*.bad
-zones/K*
-zones/dsset-*
-zones/s.out*

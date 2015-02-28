@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1245,9 +1245,9 @@ ispersistent(dns_db_t *db) {
 }
 
 static void
-overmem(dns_db_t *db, isc_boolean_t over) {
+overmem(dns_db_t *db, isc_boolean_t overmem) {
 	UNUSED(db);
-	UNUSED(over);
+	UNUSED(overmem);
 }
 
 static void

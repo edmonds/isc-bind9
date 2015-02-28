@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -6366,33 +6366,33 @@ isc__socketmgr_dispatch(isc_socketmgr_t *manager0, isc_socketwait_t *swait) {
 
 void
 isc__socket_setname(isc_socket_t *socket0, const char *name, void *tag) {
-	isc__socket_t *sock = (isc__socket_t *)socket0;
+	isc__socket_t *socket = (isc__socket_t *)socket0;
 
 	/*
-	 * Name 'sock'.
+	 * Name 'socket'.
 	 */
 
-	REQUIRE(VALID_SOCKET(sock));
+	REQUIRE(VALID_SOCKET(socket));
 
-	LOCK(&sock->lock);
-	memset(sock->name, 0, sizeof(sock->name));
-	strncpy(sock->name, name, sizeof(sock->name) - 1);
-	sock->tag = tag;
-	UNLOCK(&sock->lock);
+	LOCK(&socket->lock);
+	memset(socket->name, 0, sizeof(socket->name));
+	strncpy(socket->name, name, sizeof(socket->name) - 1);
+	socket->tag = tag;
+	UNLOCK(&socket->lock);
 }
 
 const char *
 isc__socket_getname(isc_socket_t *socket0) {
-	isc__socket_t *sock = (isc__socket_t *)socket0;
+	isc__socket_t *socket = (isc__socket_t *)socket0;
 
-	return (sock->name);
+	return (socket->name);
 }
 
 void *
 isc__socket_gettag(isc_socket_t *socket0) {
-	isc__socket_t *sock = (isc__socket_t *)socket0;
+	isc__socket_t *socket = (isc__socket_t *)socket0;
 
-	return (sock->tag);
+	return (socket->tag);
 }
 
 isc_result_t
@@ -6402,9 +6402,9 @@ isc__socket_register(void) {
 
 int
 isc__socket_getfd(isc_socket_t *socket0) {
-	isc__socket_t *sock = (isc__socket_t *)socket0;
+	isc__socket_t *socket = (isc__socket_t *)socket0;
 
-	return ((short) sock->fd);
+	return ((short) socket->fd);
 }
 
 #if defined(HAVE_LIBXML2) || defined(HAVE_JSON)

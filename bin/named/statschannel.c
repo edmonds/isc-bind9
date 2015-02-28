@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,6 +13,8 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
+/* $Id: statschannel.c,v 1.28.224.1 2011/12/22 07:48:27 marka Exp $ */
 
 /*! \file */
 
@@ -573,7 +575,7 @@ dump_counters(isc_stats_t *stats, isc_statsformat_t type, void *arg,
 	      const char *category, const char **desc, int ncounters,
 	      int *indices, isc_uint64_t *values, int options)
 {
-	int i, idx;
+	int i, index;
 	isc_uint64_t value;
 	stats_dumparg_t dumparg;
 	FILE *fp;
@@ -610,8 +612,8 @@ dump_counters(isc_stats_t *stats, isc_statsformat_t type, void *arg,
 #endif
 
 	for (i = 0; i < ncounters; i++) {
-		idx = indices[i];
-		value = values[idx];
+		index = indices[i];
+		value = values[index];
 
 		if (value == 0 && (options & ISC_STATSDUMP_VERBOSE) == 0)
 			continue;
@@ -620,7 +622,7 @@ dump_counters(isc_stats_t *stats, isc_statsformat_t type, void *arg,
 		case isc_statsformat_file:
 			fp = arg;
 			fprintf(fp, "%20" ISC_PRINT_QUADFORMAT "u %s\n",
-				value, desc[idx]);
+				value, desc[index]);
 			break;
 		case isc_statsformat_xml:
 #ifdef HAVE_LIBXML2
@@ -638,7 +640,7 @@ dump_counters(isc_stats_t *stats, isc_statsformat_t type, void *arg,
 							       "name"));
 				TRY0(xmlTextWriterWriteString(writer,
 							      ISC_XMLCHAR
-							      desc[idx]));
+							      desc[index]));
 				TRY0(xmlTextWriterEndElement(writer));
 				/* </name> */
 
@@ -662,7 +664,7 @@ dump_counters(isc_stats_t *stats, isc_statsformat_t type, void *arg,
 								 ISC_XMLCHAR
 								 "name",
 								 ISC_XMLCHAR
-								 desc[idx]));
+								 desc[index]));
 				TRY0(xmlTextWriterWriteFormatString(writer,
 					"%" ISC_PRINT_QUADFORMAT "u", value));
 				TRY0(xmlTextWriterEndElement(writer));
@@ -676,7 +678,7 @@ dump_counters(isc_stats_t *stats, isc_statsformat_t type, void *arg,
 			counter = json_object_new_int64(value);
 			if (counter == NULL)
 				return (ISC_R_NOMEMORY);
-			json_object_object_add(cat, desc[idx], counter);
+			json_object_object_add(cat, desc[index], counter);
 #endif
 			break;
 		}
@@ -1434,9 +1436,7 @@ wrap_jsonfree(isc_buffer_t *buffer, void *arg) {
 }
 
 static json_object *
-addzone(char *name, char *class, isc_uint32_t serial,
-	isc_boolean_t add_serial)
-{
+addzone(char *name, char *class, isc_uint32_t serial) {
 	json_object *node = json_object_new_object();
 
 	if (node == NULL)
@@ -1444,9 +1444,7 @@ addzone(char *name, char *class, isc_uint32_t serial,
 
 	json_object_object_add(node, "name", json_object_new_string(name));
 	json_object_object_add(node, "class", json_object_new_string(class));
-	if (add_serial)
-		json_object_object_add(node, "serial",
-				       json_object_new_int64(serial));
+	json_object_object_add(node, "serial", json_object_new_int64(serial));
 	return (node);
 }
 
@@ -1480,10 +1478,9 @@ zone_jsonrender(dns_zone_t *zone, void *arg) {
 	class_only = class;
 
 	if (dns_zone_getserial2(zone, &serial) != ISC_R_SUCCESS)
-		zoneobj = addzone(zone_name_only, class_only, 0, ISC_FALSE);
-	else
-		zoneobj = addzone(zone_name_only, class_only, serial, ISC_TRUE);
+		serial = -1;
 
+	zoneobj = addzone(zone_name_only, class_only, serial);
 	if (zoneobj == NULL)
 		return (ISC_R_NOMEMORY);
 
@@ -1571,7 +1568,7 @@ generatejson(ns_server_t *server, size_t *msglen,
 	/*
 	 * These statistics are included no matter which URL we use.
 	 */
-	obj = json_object_new_string("1.1");
+	obj = json_object_new_string("1.0");
 	CHECKMEM(obj);
 	json_object_object_add(bindstats, "json-stats-version", obj);
 
