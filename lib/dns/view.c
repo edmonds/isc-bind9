@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id$ */
 
 /*! \file */
 
@@ -695,7 +693,8 @@ dns_view_createzonetable(dns_view_t *view) {
 isc_result_t
 dns_view_createresolver(dns_view_t *view,
 			isc_taskmgr_t *taskmgr,
-			unsigned int ntasks, unsigned int ndisp,
+			unsigned int ntasks,
+			unsigned int ndisp,
 			isc_socketmgr_t *socketmgr,
 			isc_timermgr_t *timermgr,
 			unsigned int options,
@@ -1296,7 +1295,7 @@ dns_view_findzonecut2(dns_view_t *view, dns_name_t *name, dns_name_t *fname,
 		if (result == ISC_R_SUCCESS) {
 			if (zfname != NULL &&
 			    (!dns_name_issubdomain(fname, zfname) ||
-			     (dns_zone_staticstub &&
+			     (dns_zone_gettype(zone) == dns_zone_staticstub &&
 			      dns_name_equal(fname, zfname)))) {
 				/*
 				 * We found a zonecut in the cache, but our

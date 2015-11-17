@@ -937,9 +937,6 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 	RETERR(dns_message_gettemprdatalist(msg, &datalist));
 	datalist->rdclass = dns_rdataclass_any;
 	datalist->type = dns_rdatatype_sig;	/* SIG(0) */
-	datalist->covers = 0;
-	datalist->ttl = 0;
-	ISC_LIST_INIT(datalist->rdata);
 	ISC_LIST_APPEND(datalist->rdata, rdata, link);
 	dataset = NULL;
 	RETERR(dns_message_gettemprdataset(msg, &dataset));
@@ -971,7 +968,7 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 	dst_context_t *ctx = NULL;
 	isc_mem_t *mctx;
 	isc_result_t result;
-	isc_uint16_t addcount;
+	isc_uint16_t addcount, addcount_n;
 	isc_boolean_t signeedsfree = ISC_FALSE;
 
 	REQUIRE(source != NULL);
@@ -1049,7 +1046,8 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 	 * Decrement the additional field counter.
 	 */
 	memmove(&addcount, &header[DNS_MESSAGE_HEADERLEN - 2], 2);
-	addcount = htons((isc_uint16_t)(ntohs(addcount) - 1));
+	addcount_n = ntohs(addcount);
+	addcount = htons((isc_uint16_t)(addcount_n - 1));
 	memmove(&header[DNS_MESSAGE_HEADERLEN - 2], &addcount, 2);
 
 	/*
