@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include <isc/util.h>
+#include <isc/print.h>
 #include <isc/string.h>
 
 #include "dnstest.h"
@@ -36,6 +37,7 @@
 #include <openssl/objects.h>
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
+#include <openssl/bn.h>
 #endif
 
 #ifdef HAVE_PKCS11_GOST

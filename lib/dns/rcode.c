@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -68,6 +68,7 @@
 #define ERCODENAMES \
 	/* extended rcodes */ \
 	{ dns_rcode_badvers, "BADVERS", 0}, \
+	{ dns_rcode_badcookie, "BADCOOKIE", 0}, \
 	{ 0, NULL, 0 }
 
 #define TSIGRCODENAMES \

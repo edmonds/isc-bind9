@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2007, 2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005-2007, 2009, 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -978,7 +978,7 @@ isc_hmacsha1_verify(isc_hmacsha1_t *ctx, unsigned char *digest, size_t len) {
 
 	REQUIRE(len <= ISC_SHA1_DIGESTLENGTH);
 	isc_hmacsha1_sign(ctx, newdigest, ISC_SHA1_DIGESTLENGTH);
-	return (isc_safe_memcmp(digest, newdigest, len));
+	return (isc_safe_memequal(digest, newdigest, len));
 }
 
 /*
@@ -991,7 +991,7 @@ isc_hmacsha224_verify(isc_hmacsha224_t *ctx, unsigned char *digest, size_t len) 
 
 	REQUIRE(len <= ISC_SHA224_DIGESTLENGTH);
 	isc_hmacsha224_sign(ctx, newdigest, ISC_SHA224_DIGESTLENGTH);
-	return (isc_safe_memcmp(digest, newdigest, len));
+	return (isc_safe_memequal(digest, newdigest, len));
 }
 
 /*
@@ -1004,7 +1004,7 @@ isc_hmacsha256_verify(isc_hmacsha256_t *ctx, unsigned char *digest, size_t len) 
 
 	REQUIRE(len <= ISC_SHA256_DIGESTLENGTH);
 	isc_hmacsha256_sign(ctx, newdigest, ISC_SHA256_DIGESTLENGTH);
-	return (isc_safe_memcmp(digest, newdigest, len));
+	return (isc_safe_memequal(digest, newdigest, len));
 }
 
 /*
@@ -1017,7 +1017,7 @@ isc_hmacsha384_verify(isc_hmacsha384_t *ctx, unsigned char *digest, size_t len) 
 
 	REQUIRE(len <= ISC_SHA384_DIGESTLENGTH);
 	isc_hmacsha384_sign(ctx, newdigest, ISC_SHA384_DIGESTLENGTH);
-	return (isc_safe_memcmp(digest, newdigest, len));
+	return (isc_safe_memequal(digest, newdigest, len));
 }
 
 /*
@@ -1030,5 +1030,5 @@ isc_hmacsha512_verify(isc_hmacsha512_t *ctx, unsigned char *digest, size_t len) 
 
 	REQUIRE(len <= ISC_SHA512_DIGESTLENGTH);
 	isc_hmacsha512_sign(ctx, newdigest, ISC_SHA512_DIGESTLENGTH);
-	return (isc_safe_memcmp(digest, newdigest, len));
+	return (isc_safe_memequal(digest, newdigest, len));
 }

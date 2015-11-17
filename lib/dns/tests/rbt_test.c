@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2012-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -166,6 +166,7 @@ test_context_setup(void) {
 	size_t i;
 
 	ctx = isc_mem_get(mctx, sizeof(*ctx));
+	ATF_REQUIRE(ctx != NULL);
 
 	ctx->rbt = NULL;
 	result = dns_rbt_create(mctx, delete_data, NULL, &ctx->rbt);
@@ -1134,6 +1135,8 @@ insert_nodes(dns_rbt_t *mytree, char **names,
 		char namebuf[34];
 
 		n = isc_mem_get(mctx, sizeof(size_t));
+		ATF_REQUIRE(n != NULL);
+
 		*n = i; /* Unused value */
 
 		while (1) {

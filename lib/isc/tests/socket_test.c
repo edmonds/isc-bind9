@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,6 +26,7 @@
 #include <time.h>
 
 #include <isc/socket.h>
+#include <isc/print.h>
 
 #include "../task_p.h"
 #include "../unix/socket_p.h"
@@ -697,7 +698,7 @@ ATF_TC_BODY(tcp_dscp_v6, tc) {
 	if ((isc_net_probedscp() & ISC_NET_DSCPRECVV6) != 0) {
 		/*
 		 * IPV6_RECVTCLASS is undefined for TCP however
-		 * if we do get it should be the the value we set.
+		 * if we do get it it should be the value we set.
 		 */
 		if (recv_dscp)
 			ATF_CHECK_EQ(recv_dscp_value, 056);

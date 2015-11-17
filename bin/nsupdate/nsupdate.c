@@ -1020,7 +1020,7 @@ pre_parse_args(int argc, char **argv) {
 					argv[0], isc_commandline_option);
 			fprintf(stderr, "usage: nsupdate [-dD] [-L level] [-l]"
 				"[-g | -o | -y keyname:secret | -k keyfile] "
-				"[-v] [-V] [filename]\n");
+				"[-v] [-V] [-P] [-T] [filename]\n");
 			exit(1);
 
 		case 'P':
@@ -1360,7 +1360,6 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 	check_result(result, "dns_message_gettemprdatalist");
 	result = dns_message_gettemprdataset(updatemsg, &rdataset);
 	check_result(result, "dns_message_gettemprdataset");
-	dns_rdatalist_init(rdatalist);
 	rdatalist->type = rdatatype;
 	if (ispositive) {
 		if (isrrset && rdata->data != NULL)
@@ -1369,11 +1368,8 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 			rdatalist->rdclass = dns_rdataclass_any;
 	} else
 		rdatalist->rdclass = dns_rdataclass_none;
-	rdatalist->covers = 0;
-	rdatalist->ttl = 0;
 	rdata->rdclass = rdatalist->rdclass;
 	rdata->type = rdatatype;
-	ISC_LIST_INIT(rdatalist->rdata);
 	ISC_LIST_APPEND(rdatalist->rdata, rdata, link);
 	dns_rdatalist_tordataset(rdatalist, rdataset);
 	ISC_LIST_INIT(name->list);
@@ -1865,12 +1861,10 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 	check_result(result, "dns_message_gettemprdatalist");
 	result = dns_message_gettemprdataset(updatemsg, &rdataset);
 	check_result(result, "dns_message_gettemprdataset");
-	dns_rdatalist_init(rdatalist);
 	rdatalist->type = rdatatype;
 	rdatalist->rdclass = rdataclass;
 	rdatalist->covers = rdatatype;
 	rdatalist->ttl = (dns_ttl_t)ttl;
-	ISC_LIST_INIT(rdatalist->rdata);
 	ISC_LIST_APPEND(rdatalist->rdata, rdata, link);
 	dns_rdatalist_tordataset(rdatalist, rdataset);
 	ISC_LIST_INIT(name->list);
@@ -2223,6 +2217,7 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 		dns_request_destroy(&request);
 		dns_message_renderreset(updatemsg);
 		dns_message_settsigkey(updatemsg, NULL);
+		/* XXX MPA fix zonename is freed already */
 		send_update(zname, &master_servers[master_inuse]);
 		isc_event_free(&event);
 		return;
@@ -2525,6 +2520,9 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	dns_name_init(&master, NULL);
 	dns_name_clone(&soa.origin, &master);
 
+	/*
+	 * XXXMPA
+	 */
 	if (userzone != NULL)
 		zname = userzone;
 	else
