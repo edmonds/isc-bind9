@@ -33,6 +33,7 @@ override_dh_auto_configure:
 		--enable-rpz-nsip \
 		--enable-rpz-nsdname \
 		--enable-full-report \
+		--enable-fetchlimit \
 		$(shell dpkg-buildflags --export=configure)
 
 override_dh_auto_test:
