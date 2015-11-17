@@ -1,3 +1,15 @@
+isc-bind9 (9.10.3-1~dnspkg70+1) wheezy-dnspkg; urgency=medium
+
+  * New upstream release.
+    - CVE-2015-5986
+    - CVE-2015-5722
+    - More RPZ fixes
+  * Configure with "--enable-fetchlimit".
+  * Add versioned build dependency on libjson-c-dev (>= 0.11~), due to
+    upstream commit 8262b7708.
+
+ -- Robert Edmonds <edmonds@debian.org>  Mon, 16 Nov 2015 22:24:20 -0500
+
 isc-bind9 (9.10.2.P3-1~dnspkg70+1) wheezy-dnspkg; urgency=medium
 
   * New upstream releases.
